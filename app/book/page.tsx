@@ -31,12 +31,12 @@ export default async function BookPage({
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [{ data: servicesData }, { data: providersData }] = await Promise.all([
-    (supabase as any)
+    supabase
       .from("services")
       .select("id, name, description, duration_min, is_virtual")
       .eq("clinic_id", clinic.id)
       .order("name"),
-    (supabase as any)
+    supabase
       .from("providers")
       .select("id, name, title")
       .eq("clinic_id", clinic.id)

@@ -30,7 +30,7 @@ export default async function ReschedulePage({
 
   // Fetch the appointment
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: appt } = await (supabase as any)
+  const { data: appt } = await supabase
     .from("appointments")
     .select("id, start_at, end_at, status, provider_id, service_id, providers(name), services(name, duration_min)")
     .eq("id", id)
@@ -68,7 +68,7 @@ export default async function ReschedulePage({
     const patientId = (patient as { id: string } | null)?.id
     if (patientId) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: ownership } = await (supabase as any)
+      const { data: ownership } = await supabase
         .from("appointments")
         .select("id")
         .eq("id", id)

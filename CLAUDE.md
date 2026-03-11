@@ -20,19 +20,28 @@ Node 25 compatibility — never run `next` directly or `npm run dev`.
 ## Key files
 - `proxy.ts` — middleware: tenant slug resolution + Clerk auth
 - `lib/clinic.ts` — `getClinic()` React-cached server fn, reads `x-clinic-slug` header
-- `lib/supabase/types.ts` — handwritten DB type stub; run `npx supabase gen types typescript --project-id ezmktsrucdkzjrkpyigb > lib/supabase/types.ts` to replace with generated types and remove `(supabase as any)` casts
+- `lib/supabase/types.ts` — handwritten DB types with `Insertable<T>` helper and `Relationships: []` on every table; run `npx supabase gen types typescript --project-id ezmktsrucdkzjrkpyigb > lib/supabase/types.ts` to replace with generated types
 - `lib/supabase/server.ts` — `createClient()` (anon) + `createServiceClient()` (service role, bypasses RLS)
-- `lib/actions/booking.ts` — creates appointments + sends confirmation email
-- `lib/actions/appointments.ts` — cancel, confirm, reschedule
-- `lib/actions/availability.ts` — `getAvailableDates` + `getAvailableSlots` against real provider schedules
-- `lib/email.ts` — Resend confirmation email (gracefully no-ops if key not set)
+- `lib/tz.ts` — timezone utilities: `clinicLocalToUTC`, `getDayOfWeekInTz`, `formatDateInTz`, `formatTimeInTz`, `todayInTz`, `TIMEZONE_OPTIONS`
+- `lib/email.ts` — Resend booking + reschedule confirmation emails (gracefully no-ops if key not set)
 - `lib/require-admin.ts` — admin role guard via Clerk `publicMetadata.role`
+- `lib/actions/booking.ts` — creates appointments + sends confirmation email
+- `lib/actions/appointments.ts` — cancel, confirm, reschedule (+ reschedule email)
+- `lib/actions/availability.ts` — `getAvailableDates` + `getAvailableSlots` (timezone-aware)
+- `lib/actions/intake.ts` — save intake form answers to `appointments.intake_answers`
+- `lib/actions/messages.ts` — `sendPatientMessage`, `sendAdminMessage`, `markThreadRead`
+- `lib/actions/records.ts` — upload/download/delete medical records (Supabase Storage)
+- `lib/actions/schedules.ts` — upsert/delete `provider_schedules` rows
+- `lib/actions/providers.ts` — create/update providers
+- `lib/actions/clinic.ts` — update clinic settings (name, colors, timezone)
+- `lib/actions/onboard.ts` — `createClinic` (atomic: clinic + location + services) + `checkSlugAvailable`
 
 ## Route structure
 - `app/(marketing)/` — public pages (home, services, providers, locations)
 - `app/book/` — 5-step booking wizard; fetches services + providers from DB server-side
-- `app/(portal)/` — patient portal (Clerk-protected)
-- `app/(admin)/` — clinic admin (Clerk-protected + `role: "admin"` required)
+- `app/(portal)/` — patient portal (Clerk-protected): dashboard, appointments, intake, messages, records, settings, billing
+- `app/(admin)/` — clinic admin (Clerk-protected + `role: "admin"` required): bookings, providers, patients, messages, overview, settings
+- `app/onboard/` — white-label clinic setup wizard (public, static route)
 - `app/sign-in/`, `app/sign-up/` — Clerk auth pages
 
 ## Branding system
@@ -46,20 +55,40 @@ Falls back to the `lumen` demo clinic when running locally.
 
 ## Supabase patterns
 - Always use `createServiceClient()` in server actions and server components
-- Use `(supabase as any)` for all write operations (insert/update/upsert) until types are generated
+- Types are properly defined — no `(supabase as any)` casts needed
+- The `Insertable<T>` helper in `types.ts` makes nullable columns optional in Insert types
+- Every table type requires `Relationships: []` to satisfy `GenericTable` in postgrest-js v2.99+
 - Fixed UUIDs in seed data match the booking wizard's service/provider IDs:
   - Services: `10000000-0000-0000-0000-00000000000{1-6}`
   - Providers: `20000000-0000-0000-0000-00000000000{1-4}`
   - Location: `30000000-0000-0000-0000-000000000001`
 
-## Availability system
-Provider schedules are in `provider_schedules` table (day_of_week 0-6, start_time, end_time, slot_duration_min).
-All 4 demo providers work Mon–Fri 09:00–17:00 with 30-min slots.
-Times are treated as UTC — correct on Vercel deployments.
+## Timezone system
+- All appointment times are stored as UTC in the database
+- `clinics.timezone` and `locations.timezone` store the IANA timezone string (e.g. `"America/New_York"`)
+- `lib/tz.ts` provides all conversion helpers — uses `Intl` API only, no external libraries
+- `getAvailableSlots` and `getAvailableDates` read the clinic timezone via provider → clinics join
+- `createAppointment` and `rescheduleAppointment` use `clinicLocalToUTC()` for UTC conversion
+- Confirmation emails use `formatDateInTz`/`formatTimeInTz` for human-readable display
+- Onboarding wizard auto-detects browser timezone as default
+
+## Migrations (run in order in Supabase SQL Editor)
+1. `supabase/migrations/001_initial_schema.sql` — all tables + RLS policies
+2. `supabase/migrations/002_seed_demo_data.sql` — Lumen Clinic demo data
+3. `supabase/migrations/003_messages.sql` — messages table + RLS + indexes
+4. `supabase/migrations/004_medical_records.sql` — medical_records table + Storage bucket
+5. `supabase/migrations/005_timezone.sql` — `clinics.timezone` column
+6. `supabase/migrations/006_locations_address.sql` — `locations.city`, `.state`, `.zip` columns
 
 ## Admin access
 Set `publicMetadata = { "role": "admin" }` on a Clerk user to grant access to `/admin`.
 Enforced at two layers: `proxy.ts` (edge, requires JWT template) and `AdminLayout` via `requireAdmin()`.
+
+## File upload (medical records)
+- Supabase Storage bucket: `medical-records` (private)
+- Server action `uploadRecord(formData)` uses `arrayBuffer()` → `Uint8Array` to pipe bytes
+- `next.config.ts` sets `experimental.serverActions.bodySizeLimit: "11mb"`
+- Signed URLs (1-hour expiry) via `getSignedUrl(filePath)` for downloads
 
 ## Conventions
 - Avoid `"use client"` unless the component truly needs interactivity — prefer RSCs
@@ -67,3 +96,4 @@ Enforced at two layers: `proxy.ts` (edge, requires JWT template) and `AdminLayou
 - Sonner `toast.success/error` for all user-facing feedback
 - shadcn components in `components/ui/`, shared layouts in `components/shared/`
 - Never use `npm run dev` — always `node node_modules/next/dist/bin/next dev --turbopack`
+- Union-type columns (e.g. `status`, `category`, `sender_role`) require explicit `as` casts when filtering from `searchParams` strings

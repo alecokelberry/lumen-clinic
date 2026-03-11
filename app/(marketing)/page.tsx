@@ -273,6 +273,23 @@ export default async function HomePage() {
         </p>
         <BookButton size="lg" className="mt-7" />
       </section>
+
+      {/* ── Clinic CTA ───────────────────────────────────────────────────── */}
+      <section className="border-t border-border/60 bg-muted/20">
+        <div className="mx-auto max-w-6xl px-4 py-16 md:px-6">
+          <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:justify-between sm:text-left">
+            <div>
+              <p className="font-semibold text-foreground">Are you a clinic?</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Get your clinic on Lumen in under 5 minutes — website, booking, and patient portal included.
+              </p>
+            </div>
+            <Button asChild variant="outline" className="shrink-0">
+              <Link href="/onboard">Get started free →</Link>
+            </Button>
+          </div>
+        </div>
+      </section>
     </>
   )
 }

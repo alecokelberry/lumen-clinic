@@ -3,7 +3,7 @@ import Link from "next/link"
 import { getClinic } from "@/lib/clinic"
 import { ClinicBrandProvider } from "@/components/clinic-brand-provider"
 import { Toaster } from "@/components/ui/sonner"
-import { LayoutDashboard, CalendarDays, Users, Settings2 } from "lucide-react"
+import { LayoutDashboard, CalendarDays, Users, Settings2, MessageSquare, UserRound } from "lucide-react"
 import { AdminNav } from "@/components/admin/admin-nav"
 
 const clerkConfigured =
@@ -12,7 +12,9 @@ const clerkConfigured =
 
 export const NAV_ITEMS = [
   { label: "Bookings", href: "/admin", icon: CalendarDays },
+  { label: "Messages", href: "/admin/messages", icon: MessageSquare },
   { label: "Providers", href: "/admin/providers", icon: Users },
+  { label: "Patients", href: "/admin/patients", icon: UserRound },
   { label: "Overview", href: "/admin/overview", icon: LayoutDashboard },
   { label: "Settings", href: "/admin/settings", icon: Settings2 },
 ]

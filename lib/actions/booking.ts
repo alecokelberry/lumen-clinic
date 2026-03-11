@@ -3,6 +3,7 @@
 import { createServiceClient } from "@/lib/supabase/server"
 import { getClinic } from "@/lib/clinic"
 import { sendBookingConfirmation } from "@/lib/email"
+import { clinicLocalToUTC, formatDateInTz, formatTimeInTz } from "@/lib/tz"
 
 const clerkConfigured =
   !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
@@ -75,11 +76,11 @@ export async function createAppointment(input: BookingInput): Promise<BookingRes
     .single()
   const durationMin = (service as { duration_min: number } | null)?.duration_min ?? 30
 
-  // Build UTC timestamps from date + time strings
+  // Build UTC timestamps from clinic-local date + time strings
   const { hours, minutes } = parseTime(input.time)
-  const startAt = new Date(
-    `${input.date}T${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`
-  )
+  const localHHMM = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`
+  const timezone = clinic.timezone ?? "UTC"
+  const startAt = clinicLocalToUTC(input.date, localHHMM, timezone)
   const endAt = new Date(startAt.getTime() + durationMin * 60_000)
 
   // If user is logged in, upsert a patient record and link the appointment
@@ -92,7 +93,7 @@ export async function createAppointment(input: BookingInput): Promise<BookingRes
       const firstName = nameParts[0] ?? ""
       const lastName = nameParts.slice(1).join(" ") || firstName
 
-      const { data: patient } = await (supabase as any)
+      const { data: patient } = await supabase
         .from("patients")
         .upsert(
           {
@@ -112,7 +113,7 @@ export async function createAppointment(input: BookingInput): Promise<BookingRes
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from("appointments")
     .insert({
       clinic_id: clinic.id,
@@ -140,12 +141,11 @@ export async function createAppointment(input: BookingInput): Promise<BookingRes
   if (input.guestEmail) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [{ data: svc }, { data: prov }, { data: loc }] = await Promise.all([
-      (supabase as any).from("services").select("name").eq("id", input.serviceId).single(),
-      (supabase as any).from("providers").select("name").eq("id", providerId).single(),
-      (supabase as any).from("locations").select("name").eq("id", locationId).single(),
+      supabase.from("services").select("name").eq("id", input.serviceId).single(),
+      supabase.from("providers").select("name").eq("id", providerId).single(),
+      supabase.from("locations").select("name").eq("id", locationId).single(),
     ])
 
-    const startDate = new Date(startAt)
     sendBookingConfirmation({
       to: input.guestEmail,
       guestName: input.guestName || "Patient",
@@ -153,8 +153,8 @@ export async function createAppointment(input: BookingInput): Promise<BookingRes
       confirmationCode,
       serviceName: (svc as { name: string } | null)?.name ?? "Appointment",
       providerName: (prov as { name: string } | null)?.name ?? "Provider",
-      date: startDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }),
-      time: startDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }),
+      date: formatDateInTz(startAt.toISOString(), timezone),
+      time: formatTimeInTz(startAt.toISOString(), timezone),
       isVirtual: input.isVirtual,
       locationName: (loc as { name: string } | null)?.name ?? undefined,
     }).catch((err) => console.error("[email] Failed to send confirmation:", err))

@@ -8,7 +8,7 @@
 
 ## What it does
 
-A single codebase that instantly becomes any clinic's full digital presence — fully branded with custom colors, logo, providers, services, and locations. Patients book appointments, manage their health, and message their care team without ever leaving the site.
+A single codebase that instantly becomes any clinic's full digital presence — fully branded with custom colors, providers, services, and locations. Patients book appointments, manage their health, and message their care team without ever leaving the site. Clinic admins manage everything from a single dashboard.
 
 ### Public marketing site
 - Hero with clinic photo, tagline, and Book Appointment CTA
@@ -20,22 +20,35 @@ A single codebase that instantly becomes any clinic's full digital presence — 
 - Self-service calendar showing **true availability** based on provider schedules
 - Filter by provider, service, or location
 - In-person or telehealth toggle
-- Guest booking (no account required for a first appointment)
+- Guest booking (no account required)
 - Instant booking confirmation email via Resend
 - Reschedule or cancel from the patient portal
 
 ### Patient portal
 - Upcoming and past appointments dashboard
-- Reschedule with real availability checking
-- Cancellation with confirmation dialog
-- Medical records, messages, billing, and settings stubs (ready to build out)
+- Reschedule with live availability checking
+- Digital intake forms (visit reason, medications, allergies, emergency contact, insurance)
+- Secure messaging with the clinic
+- Medical records — upload, download, and organize documents by category
+- Account settings via Clerk
 
 ### Clinic admin dashboard
-- Bookings list with status filter (scheduled / confirmed / completed / cancelled / no-show)
+- Bookings table with status filters (scheduled / confirmed / completed / cancelled / no-show)
 - Confirm or cancel appointments in one click
-- Provider cards with upcoming and total booking counts
-- Analytics overview: this month vs last month, booking breakdown, top services, no-show rate
-- Role-based access (Clerk `publicMetadata.role = "admin"` required)
+- View intake answers per booking (slide-out panel)
+- **Provider management** — add, edit, toggle active/inactive
+- **Provider schedule editor** — per-day availability with slot duration control
+- **Patient list** — searchable, with appointment counts; patient detail pages
+- **Secure messaging** — inbox sorted by thread, unread counts, reply from admin
+- **Analytics overview** — month-over-month bookings, breakdown by status, top services, no-show rate
+- **Clinic settings** — name, tagline, brand colors, timezone
+- Role-based access (`Clerk publicMetadata.role = "admin"` required)
+
+### White-label onboarding
+- 4-step wizard: clinic identity → branding → location + hours + timezone → services
+- Slug availability check with live preview
+- Auto-detects browser timezone as default
+- Creates clinic, location, and services atomically
 
 ---
 
@@ -58,29 +71,49 @@ A single codebase that instantly becomes any clinic's full digital presence — 
 ```
 app/
   (marketing)/          # Public site — home, services, providers, locations
-  book/                 # Multi-step booking wizard (5 steps)
-  (portal)/             # Patient portal — dashboard, appointments, records, billing...
-  (admin)/              # Clinic admin — bookings, providers, overview
+  book/                 # 5-step booking wizard (guest or authenticated)
+  (portal)/             # Patient portal — dashboard, appointments, intake,
+  |                     #   messages, records, settings, billing
+  (admin)/              # Clinic admin — bookings, providers, patients,
+  |                     #   messages, overview, settings
+  onboard/              # White-label onboarding wizard (new clinic setup)
   sign-in/ sign-up/     # Clerk auth pages
 
 components/
-  booking/              # Wizard step components
-  admin/                # Admin-only components (filters, row actions, nav)
-  portal/               # Portal nav
+  booking/              # Booking wizard step components
+  admin/                # Admin-only components (filters, row actions, nav, intake viewer)
+  portal/               # Portal nav + message composer
   shared/               # Shared layout components
   ui/                   # shadcn/ui primitives
 
 lib/
-  actions/              # Server actions (booking, appointments, availability)
-  supabase/             # Supabase client helpers + types
-  clinic.ts             # getClinic() — per-request tenant resolution
-  email.ts              # Resend confirmation email
-  require-admin.ts      # Admin role guard
+  actions/              # Server actions:
+  |   booking.ts        #   create appointment + confirmation email
+  |   appointments.ts   #   cancel, confirm, reschedule + reschedule email
+  |   availability.ts   #   getAvailableDates + getAvailableSlots (timezone-aware)
+  |   intake.ts         #   save intake form answers
+  |   messages.ts       #   send patient/admin messages, mark read
+  |   records.ts        #   upload/download/delete medical records
+  |   schedules.ts      #   upsert provider weekly schedules
+  |   providers.ts      #   create/update providers
+  |   clinic.ts         #   update clinic settings
+  |   onboard.ts        #   createClinic + checkSlugAvailable
+  supabase/
+  |   server.ts         #   createClient() + createServiceClient()
+  |   types.ts          #   handwritten DB types (Insertable<> helper, Relationships: [])
+  clinic.ts             # getClinic() — per-request tenant resolution (React cache)
+  email.ts              # Resend booking + reschedule confirmation emails
+  tz.ts                 # Timezone utilities (clinicLocalToUTC, TIMEZONE_OPTIONS, ...)
+  require-admin.ts      # Admin role guard via Clerk publicMetadata
 
 supabase/
   migrations/
-    001_initial_schema.sql   # All tables + RLS policies
-    002_seed_demo_data.sql   # Lumen Clinic demo data
+    001_initial_schema.sql        # All tables + RLS policies
+    002_seed_demo_data.sql        # Lumen Clinic demo data (4 providers, 6 services)
+    003_messages.sql              # messages table + RLS
+    004_medical_records.sql       # medical_records table + Storage bucket
+    005_timezone.sql              # clinics.timezone column
+    006_locations_address.sql     # locations city/state/zip columns
 
 proxy.ts                # Middleware — tenant slug resolution + Clerk auth
 ```
@@ -110,14 +143,27 @@ npm install
 cp .env.example .env.local
 ```
 
-Fill in all values in `.env.local` (Clerk keys, Supabase URL + keys, Resend API key).
+Fill in all values in `.env.local`:
+
+| Variable | Where to get it |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase → Project Settings → API |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase → Project Settings → API |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Project Settings → API |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk → API Keys |
+| `CLERK_SECRET_KEY` | Clerk → API Keys |
+| `RESEND_API_KEY` | Resend → API Keys _(optional)_ |
 
 ### 3. Database migrations
 
 In your Supabase dashboard → SQL Editor, run the migrations **in order**:
 
-1. `supabase/migrations/001_initial_schema.sql` — creates all tables + RLS policies
-2. `supabase/migrations/002_seed_demo_data.sql` — seeds Lumen Clinic demo data
+1. `supabase/migrations/001_initial_schema.sql`
+2. `supabase/migrations/002_seed_demo_data.sql`
+3. `supabase/migrations/003_messages.sql`
+4. `supabase/migrations/004_medical_records.sql`
+5. `supabase/migrations/005_timezone.sql`
+6. `supabase/migrations/006_locations_address.sql`
 
 ### 4. Run the dev server
 
@@ -177,36 +223,44 @@ To grant admin access:
 ## Key conventions
 
 - **`getClinic()`** — React-cached server function, reads `x-clinic-slug` header set by `proxy.ts`. Falls back to the `lumen` demo clinic locally.
-- **`createServiceClient()`** — Supabase client using the service role key (bypasses RLS). Used only in server actions and server components.
+- **`createServiceClient()`** — Supabase client using the service role key (bypasses RLS). Used in all server actions and server components.
 - **Clinic branding** — All branded colors use `var(--clinic-primary)` and `var(--clinic-accent)` CSS variables injected per tenant by `ClinicBrandProvider`.
-- **Supabase types** — `lib/supabase/types.ts` is a handwritten stub. Run `npx supabase gen types typescript --project-id <id> > lib/supabase/types.ts` to replace it with generated types and remove the `(supabase as any)` casts.
-- **Availability** — Checked against `provider_schedules` (day_of_week + start/end time) minus existing non-cancelled appointments. Times are treated as UTC, which is correct on Vercel.
+- **Supabase types** — `lib/supabase/types.ts` is a handwritten stub with a custom `Insertable<T>` helper that makes nullable columns optional (mirrors Supabase code-gen behavior). Run `npx supabase gen types typescript --project-id <id> > lib/supabase/types.ts` to replace with fully generated types.
+- **Timezone** — All appointment times are stored as UTC. Display and availability logic use `lib/tz.ts` helpers (`clinicLocalToUTC`, `formatDateInTz`, etc.) with the clinic's `timezone` column.
+- **Availability** — Checked against `provider_schedules` (day_of_week + start/end time in clinic timezone) minus existing non-cancelled appointments.
 
 ---
 
 ## Roadmap
 
-### Done
+### Done ✓
 - [x] Multi-tenant architecture with subdomain routing
 - [x] Public marketing site (services, providers, locations from DB)
-- [x] 5-step booking wizard with real availability checking
+- [x] 5-step booking wizard with real timezone-aware availability checking
 - [x] Guest booking (no login required)
-- [x] Patient portal (dashboard, appointments, reschedule, cancel)
+- [x] Patient portal — dashboard, appointments, reschedule, cancel
+- [x] Digital intake forms
+- [x] Secure patient–clinic messaging
+- [x] Medical records upload/download (Supabase Storage)
 - [x] Clerk auth (sign-in, sign-up, portal guard)
-- [x] Booking confirmation email (Resend)
-- [x] Admin dashboard (bookings, stats, filters, confirm/cancel)
-- [x] Admin providers page and analytics overview
+- [x] Booking + reschedule confirmation emails (Resend)
+- [x] Admin — bookings, confirm/cancel, intake viewer
+- [x] Admin — provider add/edit + schedule management
+- [x] Admin — patient list + detail pages
+- [x] Admin — secure messaging inbox
+- [x] Admin — analytics overview (KPIs, breakdown, top services)
+- [x] Admin — clinic settings (branding, timezone)
+- [x] White-label onboarding wizard
+- [x] Full timezone support per clinic location
+- [x] Proper Supabase TypeScript types (no `any` casts)
 - [x] Role-based admin access (Clerk publicMetadata)
 
 ### Phase 2
 - [ ] SMS reminders (Twilio) — 24h and 1h before appointment
-- [ ] Admin settings — edit clinic branding, colors, logo
-- [ ] Provider schedule management in admin UI
-- [ ] Digital intake forms with e-signatures
+- [ ] Vercel cron job for reminder scheduling
 - [ ] Stripe bill pay
-- [ ] Secure patient–provider messaging
-- [ ] White-label onboarding wizard (new clinic in <10 min)
-- [ ] Proper timezone support per location
+- [ ] Real-time messaging (Supabase Realtime)
+- [ ] Provider photo upload
 
 ---
 

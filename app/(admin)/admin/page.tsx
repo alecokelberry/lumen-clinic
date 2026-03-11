@@ -6,6 +6,7 @@ import { CalendarDays, Clock, MapPin, Video, Users, TrendingUp, CheckCircle2 } f
 import { Suspense } from "react"
 import { StatusFilter } from "@/components/admin/status-filter"
 import { BookingRowActions } from "@/components/admin/booking-row-actions"
+import { IntakeViewer } from "@/components/admin/intake-viewer"
 import type { Metadata } from "next"
 
 export const metadata: Metadata = { title: "Admin — Bookings" }
@@ -18,6 +19,7 @@ type Booking = {
   is_virtual: boolean
   confirmation_code: string
   reason: string | null
+  intake_answers: Record<string, string> | null
   guest_name: string | null
   guest_email: string | null
   providers: { name: string } | null
@@ -81,14 +83,15 @@ export default async function AdminPage({
 
   // ── Bookings query ─────────────────────────────────────────────────────────
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let query = (supabase as any)
+  let query = supabase
     .from("appointments")
-    .select("id, start_at, end_at, status, is_virtual, confirmation_code, reason, guest_name, guest_email, providers(name), services(name), locations(name)")
+    .select("id, start_at, end_at, status, is_virtual, confirmation_code, reason, intake_answers, guest_name, guest_email, providers(name), services(name), locations(name)")
     .eq("clinic_id", clinic.id)
     .order("start_at", { ascending: false })
     .limit(100)
 
-  if (status) query = query.eq("status", status)
+  type ApptStatus = "scheduled" | "confirmed" | "cancelled" | "no-show" | "completed"
+  if (status) query = query.eq("status", status as ApptStatus)
 
   const { data } = await query
   const bookings = (data ?? []) as Booking[]
@@ -203,11 +206,23 @@ export default async function AdminPage({
                   )}
                 </div>
 
-                {/* Actions */}
-                <BookingRowActions
-                  appointmentId={booking.id}
-                  status={booking.status}
-                />
+                {/* Intake + Actions */}
+                <div className="flex flex-col items-end gap-2">
+                  {booking.intake_answers ? (
+                    <IntakeViewer
+                      answers={booking.intake_answers}
+                      patientName={booking.guest_name ?? "Patient"}
+                    />
+                  ) : (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 border border-amber-200">
+                      No intake
+                    </span>
+                  )}
+                  <BookingRowActions
+                    appointmentId={booking.id}
+                    status={booking.status}
+                  />
+                </div>
               </div>
             ))}
           </div>

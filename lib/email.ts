@@ -117,6 +117,50 @@ function buildText(d: BookingEmailData): string {
   ].join("\n")
 }
 
+export async function sendRescheduleConfirmation(data: BookingEmailData): Promise<void> {
+  if (!resend) {
+    console.info("[email] Resend not configured. Would have sent reschedule to:", data.to)
+    return
+  }
+
+  const from = data.fromEmail ?? `${data.clinicName} <noreply@lumenclinic.health>`
+  const location = data.isVirtual
+    ? "Telehealth — video link will be sent before your appointment"
+    : (data.locationName ?? data.clinicName)
+
+  const html = buildHtml(data).replace(
+    "Your appointment has been confirmed. We look forward to seeing you.",
+    "Your appointment has been rescheduled. See the updated details below."
+  ).replace(
+    "Appointment Confirmation",
+    "Appointment Rescheduled"
+  )
+
+  const text = [
+    `${data.clinicName} — Appointment Rescheduled`,
+    ``,
+    `Hi ${data.guestName},`,
+    `Your appointment has been rescheduled.`,
+    ``,
+    `Confirmation: #${data.confirmationCode}`,
+    `Service:      ${data.serviceName}`,
+    `Provider:     ${data.providerName}`,
+    `Date:         ${data.date}`,
+    `Time:         ${data.time}`,
+    `Location:     ${location}`,
+    ``,
+    `Need to make another change? Sign in to your patient portal.`,
+  ].join("\n")
+
+  await resend.emails.send({
+    from,
+    to: data.to,
+    subject: `Your appointment has been rescheduled — #${data.confirmationCode}`,
+    html,
+    text,
+  })
+}
+
 export async function sendBookingConfirmation(data: BookingEmailData): Promise<void> {
   if (!resend) {
     // Resend not configured — log in dev so it's visible

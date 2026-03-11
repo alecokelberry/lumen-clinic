@@ -1,6 +1,7 @@
 "use server"
 
 import { createServiceClient } from "@/lib/supabase/server"
+import { clinicLocalToUTC, getDayOfWeekInTz, todayInTz } from "@/lib/tz"
 
 type Schedule = {
   provider_id: string
@@ -27,24 +28,26 @@ function toDisplay(min: number) {
   return `${displayH}:${String(m).padStart(2, "0")} ${period}`
 }
 
-/** "YYYY-MM-DD" + minutes → UTC ISO string (treats schedule times as UTC — correct on Vercel) */
-function toISO(date: string, min: number) {
-  return `${date}T${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}:00.000Z`
+/** Minutes since midnight → "HH:MM" for timezone conversion */
+function toHHMM(min: number) {
+  return `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`
 }
 
-function hasConflict(slotStartMin: number, slotEndMin: number, date: string, appts: BookedAppt[]) {
-  const slotStart = new Date(toISO(date, slotStartMin)).getTime()
-  const slotEnd = new Date(toISO(date, slotEndMin)).getTime()
+function hasConflict(
+  slotStartUTC: number,
+  slotEndUTC: number,
+  appts: BookedAppt[]
+) {
   return appts.some((a) => {
     const aStart = new Date(a.start_at).getTime()
-    const aEnd = new Date(a.end_at).getTime()
-    return aStart < slotEnd && aEnd > slotStart
+    const aEnd   = new Date(a.end_at).getTime()
+    return aStart < slotEndUTC && aEnd > slotStartUTC
   })
 }
 
 /**
  * Returns available time strings ("9:00 AM") for a provider on a specific date.
- * Pass durationMin = the selected service duration.
+ * Times are in the clinic's local timezone.
  */
 export async function getAvailableSlots(
   providerId: string,
@@ -53,22 +56,35 @@ export async function getAvailableSlots(
 ): Promise<string[]> {
   const supabase = await createServiceClient()
 
-  const dow = new Date(date + "T12:00:00Z").getUTCDay()
+  // Fetch clinic timezone via provider → clinic join
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: provRow } = await supabase
+    .from("providers")
+    .select("clinic_id, clinics(timezone)")
+    .eq("id", providerId)
+    .single()
 
+  const timezone: string =
+    (provRow as { clinics: { timezone: string } } | null)?.clinics?.timezone ?? "UTC"
+
+  const dow = getDayOfWeekInTz(date, timezone)
+
+  // Fetch schedule + booked appointments in parallel
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [{ data: schedules }, { data: booked }] = await Promise.all([
-    (supabase as any)
+    supabase
       .from("provider_schedules")
       .select("start_time, end_time, slot_duration_min")
       .eq("provider_id", providerId)
       .eq("day_of_week", dow),
-    (supabase as any)
+    // Fetch appointments for the full clinic-local day (add buffer for timezone offset)
+    supabase
       .from("appointments")
       .select("start_at, end_at")
       .eq("provider_id", providerId)
       .neq("status", "cancelled")
-      .gte("start_at", `${date}T00:00:00Z`)
-      .lt("start_at", `${date}T24:00:00Z`),
+      .gte("start_at", clinicLocalToUTC(date, "00:00", timezone).toISOString())
+      .lt("start_at",  clinicLocalToUTC(date, "23:59", timezone).toISOString()),
   ])
 
   if (!schedules?.length) return []
@@ -78,10 +94,14 @@ export async function getAvailableSlots(
 
   for (const s of schedules as Pick<Schedule, "start_time" | "end_time" | "slot_duration_min">[]) {
     const schedStart = toMin(s.start_time)
-    const schedEnd = toMin(s.end_time)
+    const schedEnd   = toMin(s.end_time)
     let cursor = schedStart
+
     while (cursor + durationMin <= schedEnd) {
-      if (!hasConflict(cursor, cursor + durationMin, date, appts)) {
+      const slotStartUTC = clinicLocalToUTC(date, toHHMM(cursor), timezone).getTime()
+      const slotEndUTC   = clinicLocalToUTC(date, toHHMM(cursor + durationMin), timezone).getTime()
+
+      if (!hasConflict(slotStartUTC, slotEndUTC, appts)) {
         slots.push(toDisplay(cursor))
       }
       cursor += s.slot_duration_min
@@ -105,13 +125,19 @@ export async function getAvailableDates(
 ): Promise<DateAvailability[]> {
   const supabase = await createServiceClient()
 
+  // Fetch clinic timezone
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: clinicRow } = await supabase
+    .from("clinics").select("timezone").eq("id", clinicId).single()
+  const timezone: string = (clinicRow as { timezone: string } | null)?.timezone ?? "UTC"
+
   // Resolve provider IDs
   let providerIds: string[]
   if (providerId && providerId !== "any") {
     providerIds = [providerId]
   } else {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: providers } = await (supabase as any)
+    const { data: providers } = await supabase
       .from("providers")
       .select("id")
       .eq("clinic_id", clinicId)
@@ -121,9 +147,8 @@ export async function getAvailableDates(
 
   if (providerIds.length === 0) return []
 
-  // Fetch all schedules for these providers in one query
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: schedules } = await (supabase as any)
+  const { data: schedules } = await supabase
     .from("provider_schedules")
     .select("provider_id, day_of_week, start_time, end_time, slot_duration_min")
     .in("provider_id", providerIds)
@@ -132,27 +157,27 @@ export async function getAvailableDates(
 
   const scheduleList = schedules as Schedule[]
 
-  // Fetch all booked appointments in the range (one query)
-  const rangeStart = new Date()
-  rangeStart.setDate(rangeStart.getDate() + 1)
-  const rangeEnd = new Date(rangeStart)
-  rangeEnd.setDate(rangeStart.getDate() + daysAhead)
+  // Build date range in clinic timezone
+  const todayStr = todayInTz(timezone)
+  const [ty, tm, td] = todayStr.split("-").map(Number)
+  const rangeStartUTC = clinicLocalToUTC(todayStr, "00:00", timezone)
+  const rangeEndDate = new Date(Date.UTC(ty, tm - 1, td + daysAhead + 1))
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: appts } = await (supabase as any)
+  const { data: appts } = await supabase
     .from("appointments")
     .select("provider_id, start_at, end_at")
     .in("provider_id", providerIds)
     .neq("status", "cancelled")
-    .gte("start_at", rangeStart.toISOString())
-    .lte("start_at", rangeEnd.toISOString())
+    .gte("start_at", rangeStartUTC.toISOString())
+    .lte("start_at", rangeEndDate.toISOString())
 
   const apptList = (appts ?? []) as BookedAppt[]
 
-  // Group appointments by "YYYY-MM-DD:provider_id"
+  // Group appointments by "YYYY-MM-DD:provider_id" (date in clinic timezone)
   const apptMap = new Map<string, BookedAppt[]>()
   for (const a of apptList) {
-    const dateStr = new Date(a.start_at).toISOString().split("T")[0]
+    const dateStr = new Date(a.start_at).toLocaleDateString("en-CA", { timeZone: timezone })
     const key = `${dateStr}:${a.provider_id}`
     const existing = apptMap.get(key) ?? []
     existing.push(a)
@@ -162,13 +187,12 @@ export async function getAvailableDates(
   const result: DateAvailability[] = []
 
   for (let i = 1; i <= daysAhead; i++) {
-    const d = new Date()
-    d.setDate(d.getDate() + i)
-    const dateStr = d.toISOString().split("T")[0]
-    const dow = d.getUTCDay()
+    // Get date string i days from today in clinic timezone
+    const d = new Date(Date.UTC(ty, tm - 1, td + i, 12, 0, 0))
+    const dateStr = d.toLocaleDateString("en-CA", { timeZone: timezone })
+    const dow = getDayOfWeekInTz(dateStr, timezone)
 
     const daySchedules = scheduleList.filter((s) => s.day_of_week === dow)
-
     if (daySchedules.length === 0) {
       result.push({ date: dateStr, available: false })
       continue
@@ -177,12 +201,15 @@ export async function getAvailableDates(
     let hasSlot = false
     outer: for (const s of daySchedules) {
       const schedStart = toMin(s.start_time)
-      const schedEnd = toMin(s.end_time)
-      const dayAppts = apptMap.get(`${dateStr}:${s.provider_id}`) ?? []
+      const schedEnd   = toMin(s.end_time)
+      const dayAppts   = apptMap.get(`${dateStr}:${s.provider_id}`) ?? []
 
       let cursor = schedStart
       while (cursor + durationMin <= schedEnd) {
-        if (!hasConflict(cursor, cursor + durationMin, dateStr, dayAppts)) {
+        const slotStartUTC = clinicLocalToUTC(dateStr, toHHMM(cursor), timezone).getTime()
+        const slotEndUTC   = clinicLocalToUTC(dateStr, toHHMM(cursor + durationMin), timezone).getTime()
+
+        if (!hasConflict(slotStartUTC, slotEndUTC, dayAppts)) {
           hasSlot = true
           break outer
         }

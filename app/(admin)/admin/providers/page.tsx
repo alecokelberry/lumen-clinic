@@ -2,8 +2,9 @@ import { createServiceClient } from "@/lib/supabase/server"
 import { getClinic } from "@/lib/clinic"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Users, CalendarDays, UserPlus } from "lucide-react"
+import { Users, CalendarDays, UserPlus, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import Link from "next/link"
 import type { Metadata } from "next"
 
 export const metadata: Metadata = { title: "Admin — Providers" }
@@ -26,7 +27,7 @@ export default async function AdminProvidersPage() {
   const supabase = await createServiceClient()
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: providers } = await (supabase as any)
+  const { data: providers } = await supabase
     .from("providers")
     .select("id, name, title, bio, photo_url")
     .eq("clinic_id", clinic.id)
@@ -41,13 +42,13 @@ export default async function AdminProvidersPage() {
     providerList.map(async (p) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const [{ count: upcomingCount }, { count: totalCount }] = await Promise.all([
-        (supabase as any)
+        supabase
           .from("appointments")
           .select("*", { count: "exact", head: true })
           .eq("provider_id", p.id)
           .neq("status", "cancelled")
           .gte("start_at", now),
-        (supabase as any)
+        supabase
           .from("appointments")
           .select("*", { count: "exact", head: true })
           .eq("provider_id", p.id),
@@ -66,12 +67,11 @@ export default async function AdminProvidersPage() {
             {withStats.length} provider{withStats.length !== 1 ? "s" : ""} at {clinic.name}.
           </p>
         </div>
-        <Button
-          className="bg-[var(--clinic-primary)] text-white hover:opacity-90 shrink-0"
-          disabled
-        >
-          <UserPlus className="mr-2 h-4 w-4" />
-          Add provider
+        <Button asChild className="bg-[var(--clinic-primary)] text-white hover:opacity-90 shrink-0">
+          <Link href="/admin/providers/new">
+            <UserPlus className="mr-2 h-4 w-4" />
+            Add provider
+          </Link>
         </Button>
       </div>
 
@@ -128,6 +128,21 @@ export default async function AdminProvidersPage() {
                   >
                     Active
                   </Badge>
+                </div>
+
+                {/* Actions */}
+                <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border/60 pt-3">
+                  <Button asChild variant="outline" size="sm" className="text-xs">
+                    <Link href={`/admin/providers/${provider.id}`}>
+                      Edit
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline" size="sm" className="text-xs">
+                    <Link href={`/admin/providers/${provider.id}/schedule`}>
+                      <Clock className="mr-1.5 h-3.5 w-3.5" />
+                      Schedule
+                    </Link>
+                  </Button>
                 </div>
               </CardContent>
             </Card>

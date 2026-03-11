@@ -39,30 +39,22 @@ export default async function AdminOverviewPage() {
     { count: patientCount },
     { data: topServicesData },
   ] = await Promise.all([
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from("appointments").select("*", { count: "exact", head: true })
+    supabase.from("appointments").select("*", { count: "exact", head: true })
       .eq("clinic_id", clinic.id).gte("start_at", thisMonthStart),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from("appointments").select("*", { count: "exact", head: true })
+    supabase.from("appointments").select("*", { count: "exact", head: true })
       .eq("clinic_id", clinic.id).gte("start_at", lastMonthStart).lt("start_at", thisMonthStart),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from("appointments").select("*", { count: "exact", head: true })
+    supabase.from("appointments").select("*", { count: "exact", head: true })
       .eq("clinic_id", clinic.id).eq("status", "no-show"),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from("appointments").select("*", { count: "exact", head: true })
+    supabase.from("appointments").select("*", { count: "exact", head: true })
       .eq("clinic_id", clinic.id).eq("status", "cancelled"),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from("appointments").select("*", { count: "exact", head: true })
+    supabase.from("appointments").select("*", { count: "exact", head: true })
       .eq("clinic_id", clinic.id).eq("status", "completed"),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from("appointments").select("*", { count: "exact", head: true })
+    supabase.from("appointments").select("*", { count: "exact", head: true })
       .eq("clinic_id", clinic.id).neq("status", "cancelled").gte("start_at", now),
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any).from("patients").select("*", { count: "exact", head: true })
+    supabase.from("patients").select("*", { count: "exact", head: true })
       .eq("clinic_id", clinic.id),
     // Top services — join + group by name
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase as any)
+    supabase
       .from("appointments")
       .select("services(name)")
       .eq("clinic_id", clinic.id)

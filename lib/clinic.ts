@@ -18,6 +18,7 @@ const FALLBACK_CLINIC: Clinic = {
     nav: ["Services", "Providers", "Locations", "About"],
     features: { telehealth: true, guestBooking: true },
   },
+  timezone: "America/New_York",
   created_at: new Date().toISOString(),
 }
 
@@ -36,7 +37,7 @@ export const getClinic = cache(async (): Promise<Clinic> => {
       .select("*")
       .or(`slug.eq.${slug},custom_domain.eq.${slug}`)
       .single()
-    return data ?? FALLBACK_CLINIC
+    return (data as Clinic | null) ?? FALLBACK_CLINIC
   } catch {
     // Supabase not configured or unreachable — use fallback clinic
     return FALLBACK_CLINIC

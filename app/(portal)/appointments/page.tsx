@@ -3,7 +3,7 @@ import { getClinic } from "@/lib/clinic"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { CalendarDays, Clock, MapPin, Video, Plus, RotateCcw } from "lucide-react"
+import { CalendarDays, Clock, MapPin, Video, Plus, RotateCcw, ClipboardList } from "lucide-react"
 import Link from "next/link"
 import type { Metadata } from "next"
 import { CancelButton } from "./cancel-button"
@@ -22,6 +22,7 @@ type Appt = {
   is_virtual: boolean
   confirmation_code: string
   reason: string | null
+  intake_answers: Record<string, string> | null
   providers: { name: string } | null
   services: { name: string } | null
   locations: { name: string } | null
@@ -74,7 +75,7 @@ export default async function AppointmentsPage() {
 
       const { data: upcomingData } = await supabase
         .from("appointments")
-        .select("id, start_at, end_at, status, is_virtual, confirmation_code, reason, providers(name), services(name), locations(name)")
+        .select("id, start_at, end_at, status, is_virtual, confirmation_code, reason, intake_answers, providers(name), services(name), locations(name)")
         .eq("patient_id", patientId)
         .neq("status", "cancelled")
         .gte("start_at", now)
@@ -82,7 +83,7 @@ export default async function AppointmentsPage() {
 
       const { data: pastData } = await supabase
         .from("appointments")
-        .select("id, start_at, end_at, status, is_virtual, confirmation_code, reason, providers(name), services(name), locations(name)")
+        .select("id, start_at, end_at, status, is_virtual, confirmation_code, reason, intake_answers, providers(name), services(name), locations(name)")
         .eq("patient_id", patientId)
         .lt("start_at", now)
         .order("start_at", { ascending: false })
@@ -204,6 +205,22 @@ function AppointmentCard({ appt, allowCancel }: { appt: Appt; allowCancel: boole
           {/* Actions */}
           {isCancellable && (
             <div className="flex shrink-0 flex-col gap-2">
+              {!appt.intake_answers && (
+                <Button asChild size="sm" className="text-xs bg-[var(--clinic-primary)] text-white hover:opacity-90">
+                  <Link href={`/appointments/${appt.id}/intake`}>
+                    <ClipboardList className="mr-1.5 h-3 w-3" />
+                    Intake form
+                  </Link>
+                </Button>
+              )}
+              {appt.intake_answers && (
+                <Button asChild variant="outline" size="sm" className="text-xs">
+                  <Link href={`/appointments/${appt.id}/intake`}>
+                    <ClipboardList className="mr-1.5 h-3 w-3" />
+                    Edit intake
+                  </Link>
+                </Button>
+              )}
               <Button asChild variant="outline" size="sm" className="text-xs">
                 <Link href={`/appointments/${appt.id}/reschedule`}>
                   <RotateCcw className="mr-1.5 h-3 w-3" />
