@@ -29,12 +29,16 @@ export const getClinic = cache(async (): Promise<Clinic> => {
   const headersList = await headers()
   const slug = headersList.get("x-clinic-slug") ?? "lumen"
 
-  const supabase = await createServiceClient()
-  const { data } = await supabase
-    .from("clinics")
-    .select("*")
-    .or(`slug.eq.${slug},custom_domain.eq.${slug}`)
-    .single()
-
-  return data ?? FALLBACK_CLINIC
+  try {
+    const supabase = await createServiceClient()
+    const { data } = await supabase
+      .from("clinics")
+      .select("*")
+      .or(`slug.eq.${slug},custom_domain.eq.${slug}`)
+      .single()
+    return data ?? FALLBACK_CLINIC
+  } catch {
+    // Supabase not configured or unreachable — use fallback clinic
+    return FALLBACK_CLINIC
+  }
 })

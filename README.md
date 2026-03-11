@@ -2,7 +2,7 @@
 
 > White-label clinic platform — one Next.js app becomes the complete website, patient portal, and real-time appointment system for any medical clinic.
 
-**Live demo:** `https://your-vercel-url.vercel.app` ← _update after first deploy_
+**Live demo:** https://lumen-clinic.vercel.app
 
 ---
 
