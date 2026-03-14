@@ -97,27 +97,22 @@ export default async function AdminPage({
   const bookings = (data ?? []) as Booking[]
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-7">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-foreground">Bookings</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          All appointments for {clinic.name}.
-        </p>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {STATS.map((stat) => (
           <Card key={stat.label} className="border border-border/60">
-            <CardContent className="flex items-center gap-3 p-4">
-              <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${stat.bg}`}>
+            <CardContent className="p-5">
+              <div className={`mb-3 flex h-9 w-9 items-center justify-center rounded-lg ${stat.bg}`}>
                 <stat.icon className={`h-4 w-4 ${stat.color}`} />
               </div>
-              <div>
-                <p className="text-xl font-bold text-foreground">{stat.value}</p>
-                <p className="text-xs text-muted-foreground">{stat.label}</p>
-              </div>
+              <p className="text-2xl font-bold tracking-tight text-foreground">{stat.value}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">{stat.label}</p>
             </CardContent>
           </Card>
         ))}

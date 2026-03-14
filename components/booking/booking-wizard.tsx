@@ -73,16 +73,15 @@ export function BookingWizard({ searchParams, services, providers, clinicId }: B
   return (
     <div className="space-y-8">
       {/* Progress indicator */}
-      <div className="flex items-center gap-0">
+      <div className="flex items-center">
         {STEPS.map((s, idx) => (
           <div key={s.id} className="flex flex-1 items-center">
-            {/* Step circle */}
-            <div className="flex flex-col items-center">
+            <div className="flex flex-col items-center gap-1.5">
               <div
                 className={cn(
-                  "flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold transition-colors",
+                  "flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold transition-all",
                   step > s.id
-                    ? "bg-[var(--clinic-primary)] text-[var(--clinic-primary-foreground)]"
+                    ? "bg-[var(--clinic-primary)] text-white shadow-sm"
                     : step === s.id
                     ? "border-2 border-[var(--clinic-primary)] bg-background text-[var(--clinic-primary)]"
                     : "border-2 border-border bg-background text-muted-foreground"
@@ -92,18 +91,17 @@ export function BookingWizard({ searchParams, services, providers, clinicId }: B
               </div>
               <span
                 className={cn(
-                  "mt-1 hidden text-xs md:block",
-                  step === s.id ? "font-medium text-foreground" : "text-muted-foreground"
+                  "hidden text-xs md:block transition-colors",
+                  step === s.id ? "font-semibold text-foreground" : "text-muted-foreground"
                 )}
               >
                 {s.label}
               </span>
             </div>
-            {/* Connector */}
             {idx < STEPS.length - 1 && (
               <div
                 className={cn(
-                  "mx-1 h-0.5 flex-1 transition-colors",
+                  "mx-2 mb-5 h-px flex-1 transition-colors",
                   step > s.id ? "bg-[var(--clinic-primary)]" : "bg-border"
                 )}
               />

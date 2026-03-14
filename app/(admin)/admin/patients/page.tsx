@@ -65,9 +65,6 @@ export default async function AdminPatientsPage({ searchParams }: Props) {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Patients</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {patients.length} patient{patients.length !== 1 ? "s" : ""} registered at {clinic.name}.
-          </p>
         </div>
       </div>
 

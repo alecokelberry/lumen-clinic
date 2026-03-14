@@ -4,6 +4,7 @@ import { getClinic } from "@/lib/clinic"
 import { ClinicBrandProvider } from "@/components/clinic-brand-provider"
 import { Toaster } from "@/components/ui/sonner"
 import { PortalNav } from "@/components/portal/portal-nav"
+import { PortalMobileNav } from "@/components/portal/portal-mobile-nav"
 
 const clerkConfigured =
   !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
@@ -14,7 +15,6 @@ export default async function PortalLayout({
 }: {
   children: React.ReactNode
 }) {
-  // Enforce auth when Clerk is configured
   if (clerkConfigured) {
     const { auth } = await import("@clerk/nextjs/server")
     const { userId } = await auth()
@@ -28,26 +28,37 @@ export default async function PortalLayout({
       primaryColor={clinic.primary_color}
       accentColor={clinic.accent_color ?? "#eff6ff"}
     >
-      <div className="flex min-h-screen bg-muted/20">
+      <div className="flex min-h-screen" style={{ background: "#f8fafc" }}>
         {/* Sidebar */}
-        <aside className="hidden w-56 shrink-0 flex-col border-r border-border/60 bg-background md:flex">
-          <div className="flex h-14 items-center border-b border-border/60 px-4">
-            <Link href="/" className="text-sm font-semibold text-foreground hover:opacity-70">
-              {clinic.name}
+        <aside
+          className="hidden w-56 shrink-0 flex-col md:flex"
+          style={{ background: "#0f172a", borderRight: "1px solid #1e293b" }}
+        >
+          <div className="flex h-14 items-center gap-2 px-5" style={{ borderBottom: "1px solid #1e293b" }}>
+            <Link href="/" className="transition-opacity hover:opacity-70">
+              <span style={{ fontSize: "0.9375rem", fontWeight: 600, color: "#f1f5f9", letterSpacing: "-0.01em" }}>
+                {clinic.name}
+              </span>
             </Link>
           </div>
           <PortalNav clerkConfigured={clerkConfigured} />
         </aside>
 
-        {/* Main content */}
-        <div className="flex flex-1 flex-col">
+        {/* Main */}
+        <div className="flex flex-1 flex-col min-w-0">
           {/* Mobile top bar */}
-          <header className="flex h-14 items-center justify-between border-b border-border/60 bg-background px-4 md:hidden">
-            <Link href="/" className="text-sm font-semibold text-foreground">
-              {clinic.name}
+          <header
+            className="flex h-14 items-center gap-3 px-4 md:hidden"
+            style={{ background: "#0f172a", borderBottom: "1px solid #1e293b" }}
+          >
+            <PortalMobileNav clerkConfigured={clerkConfigured} clinicName={clinic.name} />
+            <Link href="/">
+              <span style={{ fontSize: "0.9375rem", fontWeight: 600, color: "#f1f5f9" }}>
+                {clinic.name}
+              </span>
             </Link>
           </header>
-          <main className="flex-1 px-4 py-8 md:px-8 md:py-10">{children}</main>
+          <main className="flex-1 px-4 py-6 md:px-8 md:py-10">{children}</main>
         </div>
       </div>
       <Toaster />

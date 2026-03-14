@@ -128,9 +128,6 @@ export default async function AdminOverviewPage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-foreground">Overview</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Performance summary for {clinic.name}.
-        </p>
       </div>
 
       {/* KPI cards */}

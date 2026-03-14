@@ -1,6 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/server"
 import { getClinic } from "@/lib/clinic"
-import { Card, CardContent } from "@/components/ui/card"
 import { MessageSquare } from "lucide-react"
 import Link from "next/link"
 import { markThreadRead } from "@/lib/actions/messages"
@@ -70,9 +69,6 @@ export default async function AdminMessagesPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Messages</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Patient conversations for {clinic.name}.
-        </p>
       </div>
 
       {threads.length === 0 ? (
@@ -81,35 +77,31 @@ export default async function AdminMessagesPage() {
           <p className="text-sm text-muted-foreground">No messages yet.</p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
           {threads.map((thread) => (
-            <Link key={thread.patient_id} href={`/admin/messages/${thread.patient_id}`}>
-              <Card className="border border-border/60 transition-colors hover:border-[var(--clinic-primary)]/40 hover:bg-muted/20 cursor-pointer">
-                <CardContent className="flex items-center gap-4 p-4">
-                  {/* Avatar */}
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--clinic-primary)]/10 text-sm font-bold text-[var(--clinic-primary)]">
-                    {thread.patient_name.charAt(0)}
-                  </div>
+            <Link key={thread.patient_id} href={`/admin/messages/${thread.patient_id}`} style={{ display: "block", borderRadius: "0.75rem", border: "1px solid #e2e8f0", background: "#ffffff" }}>
+              <div className="flex items-center gap-4 cursor-pointer" style={{ padding: "0.875rem 1.25rem" }}>
+                {/* Avatar */}
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold" style={{ background: "rgba(37,99,235,0.08)", color: "var(--clinic-primary)" }}>
+                  {thread.patient_name.charAt(0)}
+                </div>
 
-                  {/* Content */}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="truncate font-semibold text-foreground">{thread.patient_name}</p>
-                      <p className="shrink-0 text-xs text-muted-foreground">
-                        {formatTime(thread.last_at)}
-                      </p>
-                    </div>
-                    <p className="truncate text-sm text-muted-foreground">{thread.last_body}</p>
+                {/* Content */}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="truncate font-semibold text-foreground">{thread.patient_name}</p>
+                    <p className="shrink-0 text-xs text-muted-foreground">{formatTime(thread.last_at)}</p>
                   </div>
+                  <p className="truncate text-sm text-muted-foreground">{thread.last_body}</p>
+                </div>
 
-                  {/* Unread badge */}
-                  {thread.unread_count > 0 && (
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--clinic-primary)] text-xs font-bold text-white">
-                      {thread.unread_count}
-                    </span>
-                  )}
-                </CardContent>
-              </Card>
+                {/* Unread badge */}
+                {thread.unread_count > 0 && (
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white" style={{ background: "var(--clinic-primary)" }}>
+                    {thread.unread_count}
+                  </span>
+                )}
+              </div>
             </Link>
           ))}
         </div>

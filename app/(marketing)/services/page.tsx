@@ -1,8 +1,6 @@
 import { getClinic } from "@/lib/clinic"
 import { createServiceClient } from "@/lib/supabase/server"
 import { BookButton } from "@/components/shared/book-button"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Clock, Video } from "lucide-react"
 import Link from "next/link"
@@ -32,72 +30,75 @@ export default async function ServicesPage() {
   ].filter((g) => g.items.length > 0)
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-16 md:px-6">
-      <div className="mb-12 max-w-xl">
-        <h1 className="text-3xl font-bold tracking-tight text-foreground md:text-4xl">
-          Services
-        </h1>
-        <p className="mt-3 text-lg text-muted-foreground">
-          Everything you need, in one place — with real online booking for every service.
-        </p>
+    <>
+      {/* Page header */}
+      <div style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
+        <div className="mx-auto max-w-6xl px-6 py-12">
+          <h1 className="font-bold text-slate-900" style={{ fontSize: "2rem", letterSpacing: "-0.02em" }}>
+            Our services
+          </h1>
+          <p className="mt-2 text-slate-500">
+            Real online booking for every service — no phone calls required.
+          </p>
+        </div>
       </div>
 
-      {groups.map(({ label, items }) => (
-        <section key={label} className="mb-12">
-          <h2 className="mb-5 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            {label}
-          </h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {items.map((service) => (
-              <Card
-                key={service.id}
-                className="border border-border/60 transition-shadow hover:shadow-sm"
-              >
-                <CardContent className="flex h-full flex-col p-5">
-                  <div className="flex items-start gap-2">
-                    <p className="flex-1 font-medium text-foreground">{service.name}</p>
+      <div className="mx-auto max-w-6xl px-6 py-12">
+        {groups.map(({ label, items }) => (
+          <section key={label} className="mb-12">
+            <h2 className="mb-5 text-xs font-semibold uppercase tracking-widest text-slate-400">
+              {label}
+            </h2>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {items.map((service) => (
+                <div
+                  key={service.id}
+                  className="flex flex-col rounded-xl border bg-white p-5"
+                  style={{ borderColor: "#e2e8f0" }}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="font-semibold text-slate-900">{service.name}</p>
                     {service.is_virtual && (
-                      <Badge
-                        variant="secondary"
-                        className="shrink-0 border-[var(--clinic-primary)]/20 bg-[var(--clinic-accent)] text-[var(--clinic-primary)] text-xs"
-                      >
-                        <Video className="mr-1 h-3 w-3" />
-                        Virtual
-                      </Badge>
+                      <span className="shrink-0 inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium"
+                        style={{ borderColor: "#bfdbfe", background: "#eff6ff", color: "#2563eb" }}>
+                        <Video className="h-3 w-3" /> Virtual
+                      </span>
                     )}
                   </div>
                   {service.description && (
-                    <p className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">
+                    <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-500">
                       {service.description}
                     </p>
                   )}
                   <div className="mt-5 flex items-center justify-between">
-                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1.5 text-xs text-slate-400">
                       <Clock className="h-3.5 w-3.5" />
                       {service.duration_min} min
                     </span>
                     <Button
                       asChild
                       size="sm"
-                      className="bg-[var(--clinic-primary)] text-[var(--clinic-primary-foreground)] hover:opacity-90"
+                      className="text-white hover:opacity-90"
+                      style={{ background: "var(--clinic-primary)" }}
                     >
                       <Link href={`/book?service=${service.id}`}>Book</Link>
                     </Button>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </section>
-      ))}
+                </div>
+              ))}
+            </div>
+          </section>
+        ))}
 
-      <div className="mt-8 rounded-xl border border-[var(--clinic-primary)]/20 bg-[var(--clinic-accent)] p-8 text-center">
-        <h3 className="text-lg font-semibold text-foreground">Not sure which service you need?</h3>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Book a New Patient Visit and let your provider guide the way.
-        </p>
-        <BookButton size="default" className="mt-5" label="Book a New Patient Visit" />
+        {/* Not sure CTA */}
+        <div className="rounded-xl border p-8 text-center" style={{ borderColor: "#bfdbfe", background: "#eff6ff" }}>
+          <h3 className="font-semibold text-slate-900">Not sure which service you need?</h3>
+          <p className="mt-2 text-sm text-slate-500">
+            Book a New Patient Visit and let your provider guide the way.
+          </p>
+          <BookButton size="default" className="mt-5" label="Book a New Patient Visit" />
+        </div>
       </div>
-    </div>
+    </>
   )
 }

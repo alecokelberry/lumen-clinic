@@ -2,8 +2,6 @@
 
 > White-label clinic platform — one Next.js app becomes the complete website, patient portal, and real-time appointment system for any medical clinic.
 
-**Live demo:** https://lumen-clinic.vercel.app
-
 ---
 
 ## What it does
@@ -11,10 +9,11 @@
 A single codebase that instantly becomes any clinic's full digital presence — fully branded with custom colors, providers, services, and locations. Patients book appointments, manage their health, and message their care team without ever leaving the site. Clinic admins manage everything from a single dashboard.
 
 ### Public marketing site
-- Hero with clinic photo, tagline, and Book Appointment CTA
+- Hero with clinic tagline, key stats, and Book Appointment CTA
 - Services grid pulled from the database
-- Provider photo grid with bios and "Book with Dr. X" links
+- Provider directory with bios and "Book with Dr. X" links
 - Multi-location support with hours and map coordinates
+- About page
 
 ### Real-time appointment booking
 - Self-service calendar showing **true availability** based on provider schedules
@@ -25,12 +24,13 @@ A single codebase that instantly becomes any clinic's full digital presence — 
 - Reschedule or cancel from the patient portal
 
 ### Patient portal
-- Upcoming and past appointments dashboard
+- Upcoming appointments dashboard with quick actions
 - Reschedule with live availability checking
 - Digital intake forms (visit reason, medications, allergies, emergency contact, insurance)
 - Secure messaging with the clinic
 - Medical records — upload, download, and organize documents by category
 - Account settings via Clerk
+- Mobile-responsive with hamburger drawer nav
 
 ### Clinic admin dashboard
 - Bookings table with status filters (scheduled / confirmed / completed / cancelled / no-show)
@@ -43,6 +43,7 @@ A single codebase that instantly becomes any clinic's full digital presence — 
 - **Analytics overview** — month-over-month bookings, breakdown by status, top services, no-show rate
 - **Clinic settings** — name, tagline, brand colors, timezone
 - Role-based access (`Clerk publicMetadata.role = "admin"` required)
+- Mobile-responsive with hamburger drawer nav
 
 ### White-label onboarding
 - 4-step wizard: clinic identity → branding → location + hours + timezone → services
@@ -58,6 +59,7 @@ A single codebase that instantly becomes any clinic's full digital presence — 
 |---|---|
 | Framework | Next.js 16 (App Router, Turbopack, React Server Components) |
 | UI | shadcn/ui (new-york) + Tailwind v4 + lucide-react + Sonner |
+| Font | Outfit (Google Fonts) |
 | Auth | Clerk v7 |
 | Database | Supabase (PostgreSQL + RLS + Storage) |
 | Email | Resend |
@@ -70,7 +72,7 @@ A single codebase that instantly becomes any clinic's full digital presence — 
 
 ```
 app/
-  (marketing)/          # Public site — home, services, providers, locations
+  (marketing)/          # Public site — home, services, providers, locations, about
   book/                 # 5-step booking wizard (guest or authenticated)
   (portal)/             # Patient portal — dashboard, appointments, intake,
   |                     #   messages, records, settings, billing
@@ -81,9 +83,9 @@ app/
 
 components/
   booking/              # Booking wizard step components
-  admin/                # Admin-only components (filters, row actions, nav, intake viewer)
-  portal/               # Portal nav + message composer
-  shared/               # Shared layout components
+  admin/                # Admin-only components (filters, row actions, nav, mobile nav, intake viewer)
+  portal/               # Portal nav + mobile nav + message composer
+  shared/               # Shared layout components (nav, footer)
   ui/                   # shadcn/ui primitives
 
 lib/
@@ -114,6 +116,7 @@ supabase/
     004_medical_records.sql       # medical_records table + Storage bucket
     005_timezone.sql              # clinics.timezone column
     006_locations_address.sql     # locations city/state/zip columns
+    007_seed_patients.sql         # mock patients, appointments, messages, records
 
 proxy.ts                # Middleware — tenant slug resolution + Clerk auth
 ```
@@ -124,7 +127,7 @@ proxy.ts                # Middleware — tenant slug resolution + Clerk auth
 
 ### Prerequisites
 
-- Node.js 20+
+- Node.js 25+
 - A [Supabase](https://supabase.com) project
 - A [Clerk](https://clerk.com) application
 - A [Resend](https://resend.com) account _(optional — emails log to console without it)_
@@ -136,6 +139,8 @@ git clone https://github.com/your-username/lumen-clinic.git
 cd lumen-clinic
 npm install
 ```
+
+> `npm install` is the only `npm` command you need. Do **not** use `npm run dev` — see step 4.
 
 ### 2. Environment variables
 
@@ -164,13 +169,15 @@ In your Supabase dashboard → SQL Editor, run the migrations **in order**:
 4. `supabase/migrations/004_medical_records.sql`
 5. `supabase/migrations/005_timezone.sql`
 6. `supabase/migrations/006_locations_address.sql`
+7. `supabase/migrations/007_seed_patients.sql` _(mock patients, appointments, messages, records)_
 
 ### 4. Run the dev server
 
 ```bash
-# Must use node directly — Next.js 16 + Node 25 compatibility
 node node_modules/next/dist/bin/next dev --turbopack
 ```
+
+> **Do not use `npm run dev`** — it omits `--turbopack`, which is required for Node 25 compatibility and will crash on startup.
 
 Open [http://localhost:3000](http://localhost:3000).
 
@@ -184,11 +191,11 @@ In the Vercel dashboard → New Project → import your repo.
 
 ### 2. Add environment variables
 
-Copy every key from `.env.example` into Vercel's Environment Variables panel with your real values. Set `NEXT_PUBLIC_APP_URL` to your Vercel URL.
+Copy every key from `.env.example` into Vercel's Environment Variables panel with your real values. Set `NEXT_PUBLIC_APP_URL` to your Vercel deployment URL (e.g. `https://your-app.vercel.app`).
 
 ### 3. Deploy
 
-Vercel auto-detects Next.js. The build command is `next build` (standard). No changes needed.
+Vercel auto-detects Next.js. The build command is `next build` (standard). No `vercel.json` needed.
 
 ### 4. Multi-tenant subdomain routing (optional)
 
@@ -199,7 +206,7 @@ If you want `clinic.lumenclinic.health` to resolve to a specific clinic:
 3. Set `NEXT_PUBLIC_ROOT_DOMAIN=lumenclinic.health` in Vercel env vars
 4. `proxy.ts` extracts the subdomain and sets `x-clinic-slug` on every request
 
-For localhost development, the app defaults to the `lumen` clinic slug.
+For localhost development, the app defaults to the `lumen` clinic slug automatically.
 
 ---
 
@@ -224,9 +231,10 @@ To grant admin access:
 
 - **`getClinic()`** — React-cached server function, reads `x-clinic-slug` header set by `proxy.ts`. Falls back to the `lumen` demo clinic locally.
 - **`createServiceClient()`** — Supabase client using the service role key (bypasses RLS). Used in all server actions and server components.
-- **Clinic branding** — All branded colors use `var(--clinic-primary)` and `var(--clinic-accent)` CSS variables injected per tenant by `ClinicBrandProvider`.
-- **Supabase types** — `lib/supabase/types.ts` is a handwritten stub with a custom `Insertable<T>` helper that makes nullable columns optional (mirrors Supabase code-gen behavior). Run `npx supabase gen types typescript --project-id <id> > lib/supabase/types.ts` to replace with fully generated types.
+- **Clinic branding** — All branded colors use `var(--clinic-primary)` and `var(--clinic-accent)` CSS variables injected per tenant by `ClinicBrandProvider`. Structural chrome uses hardcoded hex values.
+- **Supabase types** — `lib/supabase/types.ts` is a handwritten stub with a custom `Insertable<T>` helper. Run `npx supabase gen types typescript --project-id <id> > lib/supabase/types.ts` to replace with fully generated types.
 - **Timezone** — All appointment times are stored as UTC. Display and availability logic use `lib/tz.ts` helpers (`clinicLocalToUTC`, `formatDateInTz`, etc.) with the clinic's `timezone` column.
+- **Tailwind v4** — Responsive prefix classes (`sm:`, `md:`, `lg:`) are unreliable. Use inline `style={{}}` for all font sizes, display properties, and grid columns. Non-responsive utilities work fine.
 - **Availability** — Checked against `provider_schedules` (day_of_week + start/end time in clinic timezone) minus existing non-cancelled appointments.
 
 ---
@@ -235,7 +243,7 @@ To grant admin access:
 
 ### Done ✓
 - [x] Multi-tenant architecture with subdomain routing
-- [x] Public marketing site (services, providers, locations from DB)
+- [x] Public marketing site (services, providers, locations, about from DB)
 - [x] 5-step booking wizard with real timezone-aware availability checking
 - [x] Guest booking (no login required)
 - [x] Patient portal — dashboard, appointments, reschedule, cancel
@@ -254,6 +262,8 @@ To grant admin access:
 - [x] Full timezone support per clinic location
 - [x] Proper Supabase TypeScript types (no `any` casts)
 - [x] Role-based admin access (Clerk publicMetadata)
+- [x] Fully responsive mobile UI (portal + admin hamburger nav drawers)
+- [x] Consistent design system across all pages (marketing, portal, admin)
 
 ### Phase 2
 - [ ] SMS reminders (Twilio) — 24h and 1h before appointment

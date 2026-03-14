@@ -63,9 +63,6 @@ export default async function AdminProvidersPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Providers</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {withStats.length} provider{withStats.length !== 1 ? "s" : ""} at {clinic.name}.
-          </p>
         </div>
         <Button asChild className="bg-[var(--clinic-primary)] text-white hover:opacity-90 shrink-0">
           <Link href="/admin/providers/new">

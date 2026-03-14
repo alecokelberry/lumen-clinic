@@ -1,286 +1,308 @@
 import { getClinic } from "@/lib/clinic"
 import { BookButton } from "@/components/shared/book-button"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import {
-  CalendarDays,
-  MapPin,
-  MessageSquare,
-  ShieldCheck,
-  Star,
-  Video,
-} from "lucide-react"
+import { CalendarDays, MessageSquare, ShieldCheck, Star, Video, ArrowRight, CheckCircle } from "lucide-react"
 import Link from "next/link"
+import { createServiceClient } from "@/lib/supabase/server"
+import type { Service, Provider } from "@/lib/supabase/types"
 
-// Demo data — replaced by Supabase queries once DB is live
-const DEMO_SERVICES = [
-  { id: "1", name: "New Patient Visit", description: "Comprehensive first-time evaluation with one of our specialists.", duration_min: 60, is_virtual: false },
-  { id: "2", name: "Follow-Up", description: "Routine follow-up for existing patients.", duration_min: 30, is_virtual: false },
-  { id: "3", name: "Telehealth Consultation", description: "Meet with your provider from the comfort of home.", duration_min: 30, is_virtual: true },
-  { id: "4", name: "Allergy Testing", description: "Full panel allergy testing and results review.", duration_min: 90, is_virtual: false },
-  { id: "5", name: "Hearing Evaluation", description: "Comprehensive hearing assessment by an audiologist.", duration_min: 45, is_virtual: false },
-  { id: "6", name: "Prescription Refill", description: "Quick check-in for medication renewals.", duration_min: 15, is_virtual: true },
+const TESTIMONIALS = [
+  { name: "Jennifer K.", text: "Booking online was effortless — I was seen within 48 hours. The team is incredibly kind.", rating: 5, role: "Patient since 2024" },
+  { name: "Tom R.", text: "Finally a doctor's office that doesn't require faxing my insurance card. Everything was handled digitally.", rating: 5, role: "Patient since 2023" },
+  { name: "Maria S.", text: "The telehealth option was a lifesaver. Same quality of care, no commute required.", rating: 5, role: "Patient since 2024" },
 ]
 
-const DEMO_PROVIDERS = [
-  { id: "1", name: "Dr. Sarah Chen", title: "Otolaryngologist, MD", bio: "Board-certified ENT specialist with 15 years of experience in sinus, allergy, and head & neck surgery.", photo_url: null },
-  { id: "2", name: "Dr. Marcus Webb", title: "Otolaryngologist, MD", bio: "Specializing in pediatric ENT and minimally invasive ear surgery.", photo_url: null },
-  { id: "3", name: "Dr. Priya Nair", title: "Audiologist, AuD", bio: "Expert in hearing loss, tinnitus management, and hearing aids.", photo_url: null },
-]
-
-const DEMO_TESTIMONIALS = [
-  { id: "1", name: "Jennifer K.", text: "Booking online was effortless and I was seen within 48 hours. The team is incredibly kind.", rating: 5 },
-  { id: "2", name: "Tom R.", text: "Finally a doctor's office that doesn't require faxing my insurance card. Everything was handled digitally.", rating: 5 },
-  { id: "3", name: "Maria S.", text: "The telehealth option was a lifesaver. Same great care, no commute.", rating: 5 },
+const WHY_ITEMS = [
+  { icon: CalendarDays, title: "Book in 60 seconds", body: "Real-time availability. No phone calls, no hold music. Instant confirmation sent to your inbox." },
+  { icon: MessageSquare, title: "Secure messaging",  body: "Message your care team directly. Get results, ask follow-up questions — no phone tag, ever." },
+  { icon: ShieldCheck,   title: "HIPAA compliant",   body: "Enterprise-grade security protects every message, record, and appointment in your account." },
 ]
 
 export default async function HomePage() {
   const clinic = await getClinic()
+  const supabase = await createServiceClient()
+
+  const [{ data: servicesData }, { data: providersData }] = await Promise.all([
+    supabase.from("services").select("*").eq("clinic_id", clinic.id).eq("is_active", true).order("sort_order").limit(6),
+    supabase.from("providers").select("id, name, title, photo_url, specialties").eq("clinic_id", clinic.id).eq("is_active", true).order("created_at").limit(3),
+  ])
+
+  const services  = (servicesData  ?? []) as Service[]
+  const providers = (providersData ?? []) as Pick<Provider, "id" | "name" | "title" | "photo_url" | "specialties">[]
+
+  const heroHeadline = (clinic.tagline && clinic.tagline !== "Compassionate care — close to home.")
+    ? clinic.tagline
+    : "Your health, handled with expertise."
 
   return (
     <>
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-[var(--clinic-accent)] via-background to-background">
-        <div className="mx-auto max-w-6xl px-4 py-24 md:px-6 md:py-36">
-          <div className="max-w-2xl">
-            <Badge
-              variant="secondary"
-              className="mb-5 border-[var(--clinic-primary)]/20 bg-[var(--clinic-accent)] text-[var(--clinic-primary)]"
-            >
-              Now accepting new patients
-            </Badge>
-            <h1 className="text-4xl font-bold leading-tight tracking-tight text-foreground md:text-5xl lg:text-6xl">
-              {clinic.tagline ?? `Expert care from ${clinic.name}`}
-            </h1>
-            <p className="mt-5 text-lg leading-relaxed text-muted-foreground">
-              Book in minutes. No phone calls, no paperwork, no waiting room
-              surprises. Just clear, compassionate care — on your schedule.
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <BookButton size="lg" />
-              <Button variant="outline" size="lg" asChild>
-                <Link href="/providers">Meet Our Providers</Link>
-              </Button>
+      <section style={{ background: "linear-gradient(160deg, #eef2ff 0%, #ffffff 50%)" }}>
+        <div className="mx-auto max-w-6xl px-6" style={{ paddingTop: "5rem", paddingBottom: "5rem" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4rem", alignItems: "center" }}>
+
+            {/* Copy */}
+            <div>
+              <h1
+                className="font-bold text-slate-900"
+                style={{ fontSize: "clamp(2.25rem, 3.5vw + 0.5rem, 3rem)", lineHeight: 1.1, letterSpacing: "-0.025em" }}
+              >
+                {heroHeadline}
+              </h1>
+
+              <p className="mt-5 leading-relaxed text-slate-500" style={{ fontSize: "1.0625rem" }}>
+                Book in minutes. No phone calls, no paperwork surprises. Specialists who take time to listen — on your schedule.
+              </p>
+
+              <div className="mt-8 flex flex-wrap items-center gap-3">
+                <BookButton size="lg" />
+                <Button variant="ghost" size="lg" asChild className="gap-2 text-slate-600">
+                  <Link href="/providers">
+                    Meet our providers
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </div>
+
+              <div className="mt-10 flex flex-wrap gap-5">
+                {[
+                  { icon: CalendarDays, text: "Same-week appointments" },
+                  { icon: Video,        text: "Telehealth available" },
+                  { icon: ShieldCheck,  text: "HIPAA compliant" },
+                ].map(({ icon: Icon, text }) => (
+                  <span key={text} className="flex items-center gap-1.5 text-sm text-slate-500">
+                    <Icon className="h-4 w-4" style={{ color: "var(--clinic-primary)" }} />
+                    {text}
+                  </span>
+                ))}
+              </div>
             </div>
-            {/* Trust signals */}
-            <div className="mt-10 flex flex-wrap gap-6 text-sm text-muted-foreground">
-              <span className="flex items-center gap-1.5">
-                <CalendarDays className="h-4 w-4 text-[var(--clinic-primary)]" />
-                Same-week appointments
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Video className="h-4 w-4 text-[var(--clinic-primary)]" />
-                Telehealth available
-              </span>
-              <span className="flex items-center gap-1.5">
-                <ShieldCheck className="h-4 w-4 text-[var(--clinic-primary)]" />
-                HIPAA secure
-              </span>
+
+            {/* Right: Stats grid */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+              {[
+                { value: "48 hr",  label: "Average wait time",      sub: "For new patient visits" },
+                { value: "5.0★",   label: "Patient rating",         sub: "Based on 2,000+ reviews" },
+                { value: "100%",   label: "Online booking",         sub: "No phone calls needed" },
+                { value: "Same week", label: "Appointments available", sub: "Book as soon as this week" },
+              ].map(({ value, label, sub }) => (
+                <div key={label} className="rounded-xl border bg-white p-6" style={{ borderColor: "#e2e8f0" }}>
+                  <p className="font-bold" style={{ fontSize: "1.75rem", letterSpacing: "-0.03em", color: "var(--clinic-primary)" }}>
+                    {value}
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">{label}</p>
+                  <p className="mt-0.5 text-xs text-slate-400">{sub}</p>
+                </div>
+              ))}
             </div>
+
           </div>
         </div>
-        {/* Decorative background shape */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute right-0 top-0 h-full w-1/2 opacity-5"
-          style={{
-            background: `radial-gradient(ellipse at right top, var(--clinic-primary) 0%, transparent 70%)`,
-          }}
-        />
       </section>
 
       {/* ── Services ─────────────────────────────────────────────────────── */}
-      <section className="mx-auto max-w-6xl px-4 py-20 md:px-6">
-        <div className="mb-10 flex items-end justify-between">
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
-              What we treat
-            </h2>
-            <p className="mt-2 text-muted-foreground">
-              Comprehensive care across all specialties.
-            </p>
-          </div>
-          <Button variant="ghost" size="sm" asChild className="hidden md:inline-flex">
-            <Link href="/services">View all →</Link>
-          </Button>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {DEMO_SERVICES.map((service) => (
-            <Card
-              key={service.id}
-              className="group cursor-pointer border border-border/60 transition-all hover:border-[var(--clinic-primary)]/40 hover:shadow-sm"
+      <section style={{ borderTop: "1px solid #e2e8f0", background: "#f8fafc" }}>
+        <div className="mx-auto max-w-6xl px-6 py-20">
+          <div className="mb-10 flex items-end justify-between">
+            <div>
+              <p className="mb-1.5 text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--clinic-primary)" }}>What we offer</p>
+              <h2 className="font-bold text-slate-900" style={{ fontSize: "clamp(1.5rem, 2vw + 0.5rem, 2rem)", letterSpacing: "-0.02em" }}>
+                Everything you need, in one place
+              </h2>
+            </div>
+            <Link
+              href="/services"
+              className="hidden items-center gap-1 text-sm font-medium transition-colors hover:text-slate-900 md:flex"
+              style={{ color: "var(--clinic-primary)" }}
             >
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between">
+              All services <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {services.map((service) => (
+              <Link
+                key={service.id}
+                href={`/book?service=${service.id}`}
+                className="card-lift group flex flex-col rounded-xl border bg-white p-5 transition-colors hover:border-blue-200"
+                style={{ borderColor: "#e2e8f0" }}
+              >
+                <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium text-foreground">{service.name}</p>
-                      {service.is_virtual && (
-                        <Badge variant="secondary" className="text-xs">
-                          <Video className="mr-1 h-3 w-3" />
-                          Virtual
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="mt-1.5 text-sm text-muted-foreground">
-                      {service.description}
+                    <p className="font-semibold text-slate-900" style={{ fontSize: "0.9375rem" }}>
+                      {service.name}
                     </p>
+                    {service.is_virtual && (
+                      <span className="mt-1 inline-flex items-center gap-1 text-xs font-medium" style={{ color: "var(--clinic-primary)" }}>
+                        <Video className="h-3 w-3" /> Virtual
+                      </span>
+                    )}
                   </div>
-                </div>
-                <div className="mt-4 flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">
+                  <span className="shrink-0 rounded-full border px-2 py-0.5 text-xs text-slate-500" style={{ borderColor: "#e2e8f0", whiteSpace: "nowrap" }}>
                     {service.duration_min} min
                   </span>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    asChild
-                    className="h-7 px-3 text-xs text-[var(--clinic-primary)] hover:bg-[var(--clinic-accent)]"
-                  >
-                    <Link href={`/book?service=${service.id}`}>Book →</Link>
-                  </Button>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
+                {service.description && (
+                  <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-500 line-clamp-2">
+                    {service.description}
+                  </p>
+                )}
+                <div className="mt-4 flex items-center gap-1 text-xs font-semibold opacity-0 transition-opacity group-hover:opacity-100" style={{ color: "var(--clinic-primary)" }}>
+                  Book now <ArrowRight className="h-3 w-3" />
+                </div>
+              </Link>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* ── Providers ────────────────────────────────────────────────────── */}
-      <section className="bg-muted/30">
-        <div className="mx-auto max-w-6xl px-4 py-20 md:px-6">
-          <div className="mb-10 flex items-end justify-between">
-            <div>
-              <h2 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
-                Your care team
-              </h2>
-              <p className="mt-2 text-muted-foreground">
-                Board-certified specialists who take time to listen.
-              </p>
-            </div>
-            <Button variant="ghost" size="sm" asChild className="hidden md:inline-flex">
-              <Link href="/providers">All providers →</Link>
-            </Button>
-          </div>
-          <div className="grid gap-5 md:grid-cols-3">
-            {DEMO_PROVIDERS.map((provider) => (
-              <Card
-                key={provider.id}
-                className="overflow-hidden border border-border/60"
+      {providers.length > 0 && (
+        <section style={{ borderTop: "1px solid #e2e8f0", background: "#ffffff" }}>
+          <div className="mx-auto max-w-6xl px-6 py-20">
+            <div className="mb-10 flex items-end justify-between">
+              <div>
+                <p className="mb-1.5 text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--clinic-primary)" }}>Your care team</p>
+                <h2 className="font-bold text-slate-900" style={{ fontSize: "clamp(1.5rem, 2vw + 0.5rem, 2rem)", letterSpacing: "-0.02em" }}>
+                  Specialists who take time to listen
+                </h2>
+              </div>
+              <Link
+                href="/providers"
+                className="hidden items-center gap-1 text-sm font-medium transition-colors hover:text-slate-900 md:flex"
+                style={{ color: "var(--clinic-primary)" }}
               >
-                {/* Provider photo */}
-                <div className="aspect-[4/3] bg-gradient-to-br from-[var(--clinic-accent)] to-muted flex items-center justify-center">
-                  <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[var(--clinic-primary)]/10 text-3xl font-bold text-[var(--clinic-primary)]">
-                    {provider.name.charAt(3)}
-                  </div>
-                </div>
-                <CardContent className="p-5">
-                  <p className="font-semibold text-foreground">{provider.name}</p>
-                  <p className="text-sm text-muted-foreground">{provider.title}</p>
-                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground line-clamp-2">
-                    {provider.bio}
-                  </p>
-                  <Button
-                    asChild
-                    size="sm"
-                    className="mt-4 w-full bg-[var(--clinic-primary)] text-[var(--clinic-primary-foreground)] hover:opacity-90"
-                  >
-                    <Link href={`/book?provider=${provider.id}`}>
-                      <CalendarDays className="mr-2 h-3.5 w-3.5" />
-                      Book with {provider.name.split(" ")[1]}
+                All providers <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+
+            <div className="grid gap-5 md:grid-cols-3">
+              {providers.map((provider) => {
+                const initials = provider.name.split(" ").filter(p => !p.endsWith(".")).slice(0, 2).map(n => n[0]).join("")
+                const firstName = provider.name.split(" ").find(p => !p.endsWith(".")) ?? provider.name
+                return (
+                  <div key={provider.id} className="card-lift group">
+                    <Link href={`/book?provider=${provider.id}`} className="block overflow-hidden rounded-xl border bg-white" style={{ borderColor: "#e2e8f0" }}>
+                      <div className="relative flex h-48 items-center justify-center" style={{ background: "#f1f5f9" }}>
+                        {provider.photo_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={provider.photo_url} alt={provider.name} className="h-full w-full object-cover" />
+                        ) : (
+                          <span className="text-5xl font-bold" style={{ color: "var(--clinic-primary)", opacity: 0.15 }}>
+                            {initials}
+                          </span>
+                        )}
+                      </div>
+                      <div className="p-5">
+                        <p className="font-semibold text-slate-900">{provider.name}</p>
+                        {provider.title && <p className="mt-0.5 text-sm text-slate-500">{provider.title}</p>}
+                        {provider.specialties.length > 0 && (
+                          <div className="mt-3 flex flex-wrap gap-1.5">
+                            {provider.specialties.slice(0, 2).map((s) => (
+                              <span key={s} className="rounded-full border px-2.5 py-0.5 text-xs font-medium" style={{ borderColor: "#bfdbfe", background: "var(--clinic-accent)", color: "var(--clinic-primary)" }}>
+                                {s}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <p className="mt-4 flex items-center gap-1 text-xs font-semibold opacity-0 transition-opacity group-hover:opacity-100" style={{ color: "var(--clinic-primary)" }}>
+                          <CalendarDays className="h-3.5 w-3.5" />
+                          Book with {firstName}
+                          <ArrowRight className="h-3 w-3" />
+                        </p>
+                      </div>
                     </Link>
-                  </Button>
-                </CardContent>
-              </Card>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── Why ──────────────────────────────────────────────────────────── */}
+      <section style={{ borderTop: "1px solid #e2e8f0", background: "#f8fafc" }}>
+        <div className="mx-auto max-w-6xl px-6 py-20">
+          <div className="mb-10">
+            <p className="mb-1.5 text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--clinic-primary)" }}>Why patients choose us</p>
+            <h2 className="font-bold text-slate-900" style={{ fontSize: "clamp(1.5rem, 2vw + 0.5rem, 2rem)", letterSpacing: "-0.02em" }}>
+              A better way to get seen
+            </h2>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            {WHY_ITEMS.map(({ icon: Icon, title, body }) => (
+              <div key={title} className="rounded-xl border bg-white p-6" style={{ borderColor: "#e2e8f0" }}>
+                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg" style={{ background: "var(--clinic-accent)" }}>
+                  <Icon className="h-5 w-5" style={{ color: "var(--clinic-primary)" }} />
+                </div>
+                <h3 className="font-semibold text-slate-900">{title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-slate-500">{body}</p>
+              </div>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* ── Why Lumen ────────────────────────────────────────────────────── */}
-      <section className="mx-auto max-w-6xl px-4 py-20 md:px-6">
-        <h2 className="mb-10 text-center text-2xl font-bold tracking-tight text-foreground md:text-3xl">
-          A better way to get care
-        </h2>
-        <div className="grid gap-6 md:grid-cols-3">
-          {[
-            {
-              icon: CalendarDays,
-              title: "Book in 60 seconds",
-              body: "Real-time availability, no phone calls, instant confirmation with everything you need.",
-            },
-            {
-              icon: MessageSquare,
-              title: "Secure messaging",
-              body: "Message your care team directly, get results, and ask follow-up questions — no phone tag.",
-            },
-            {
-              icon: MapPin,
-              title: "Multiple locations",
-              body: "Choose the location and provider that's most convenient. All records follow you.",
-            },
-          ].map((item) => (
-            <div key={item.title} className="flex flex-col items-start gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--clinic-accent)]">
-                <item.icon className="h-5 w-5 text-[var(--clinic-primary)]" />
-              </div>
-              <h3 className="font-semibold text-foreground">{item.title}</h3>
-              <p className="text-sm leading-relaxed text-muted-foreground">{item.body}</p>
-            </div>
-          ))}
         </div>
       </section>
 
       {/* ── Testimonials ─────────────────────────────────────────────────── */}
-      <section className="bg-muted/30">
-        <div className="mx-auto max-w-6xl px-4 py-20 md:px-6">
-          <h2 className="mb-10 text-center text-2xl font-bold tracking-tight text-foreground md:text-3xl">
-            What patients say
-          </h2>
-          <div className="grid gap-5 md:grid-cols-3">
-            {DEMO_TESTIMONIALS.map((t) => (
-              <Card key={t.id} className="border border-border/60">
-                <CardContent className="p-5">
-                  <div className="flex gap-0.5">
-                    {Array.from({ length: t.rating }).map((_, i) => (
-                      <Star
-                        key={i}
-                        className="h-4 w-4 fill-amber-400 text-amber-400"
-                      />
-                    ))}
-                  </div>
-                  <p className="mt-3 text-sm leading-relaxed text-foreground">
-                    &ldquo;{t.text}&rdquo;
-                  </p>
-                  <p className="mt-3 text-xs font-medium text-muted-foreground">
-                    — {t.name}
-                  </p>
-                </CardContent>
-              </Card>
+      <section style={{ borderTop: "1px solid #e2e8f0", background: "#ffffff" }}>
+        <div className="mx-auto max-w-6xl px-6 py-20">
+          <div className="mb-10 text-center">
+            <p className="mb-1.5 text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--clinic-primary)" }}>Patient stories</p>
+            <h2 className="font-bold text-slate-900" style={{ fontSize: "clamp(1.5rem, 2vw + 0.5rem, 2rem)", letterSpacing: "-0.02em" }}>
+              What patients say
+            </h2>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            {TESTIMONIALS.map((t) => (
+              <div key={t.name} className="flex flex-col rounded-xl border bg-white p-6" style={{ borderColor: "#e2e8f0" }}>
+                <div className="flex gap-0.5">
+                  {Array.from({ length: t.rating }).map((_, i) => (
+                    <Star key={i} className="h-4 w-4 fill-amber-400 text-amber-400" />
+                  ))}
+                </div>
+                <p className="mt-4 flex-1 text-sm leading-relaxed text-slate-700">&ldquo;{t.text}&rdquo;</p>
+                <div className="mt-5 border-t pt-4" style={{ borderColor: "#f1f5f9" }}>
+                  <p className="text-sm font-semibold text-slate-900">{t.name}</p>
+                  <p className="text-xs text-slate-500">{t.role}</p>
+                </div>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── Final CTA ────────────────────────────────────────────────────── */}
-      <section className="mx-auto max-w-6xl px-4 py-24 text-center md:px-6">
-        <h2 className="text-2xl font-bold tracking-tight text-foreground md:text-3xl">
-          Ready to feel better?
-        </h2>
-        <p className="mx-auto mt-3 max-w-md text-muted-foreground">
-          Book your appointment online in under a minute. No referral needed.
-        </p>
-        <BookButton size="lg" className="mt-7" />
+      {/* ── CTA ──────────────────────────────────────────────────────────── */}
+      <section style={{ borderTop: "1px solid #e2e8f0", background: "linear-gradient(160deg, #eef2ff 0%, #ffffff 100%)" }}>
+        <div className="mx-auto max-w-6xl px-6 py-20 text-center">
+          <h2 className="font-bold text-slate-900" style={{ fontSize: "clamp(1.75rem, 2.5vw + 0.5rem, 2.5rem)", letterSpacing: "-0.02em" }}>
+            Ready to get started?
+          </h2>
+          <p className="mx-auto mt-3 max-w-sm text-slate-500">
+            Book online in under a minute. No referral needed.
+          </p>
+          <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
+            <BookButton size="lg" />
+            <Button variant="outline" size="lg" asChild>
+              <Link href="/about">Learn about us</Link>
+            </Button>
+          </div>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-sm text-slate-500">
+            {["No referral needed", "Cancel anytime", "Insurance accepted"].map((t) => (
+              <span key={t} className="flex items-center gap-1.5">
+                <CheckCircle className="h-4 w-4 text-emerald-500" /> {t}
+              </span>
+            ))}
+          </div>
+        </div>
       </section>
 
       {/* ── Clinic CTA ───────────────────────────────────────────────────── */}
-      <section className="border-t border-border/60 bg-muted/20">
-        <div className="mx-auto max-w-6xl px-4 py-16 md:px-6">
+      <section style={{ borderTop: "1px solid #e2e8f0", background: "#f8fafc" }}>
+        <div className="mx-auto max-w-6xl px-6 py-8">
           <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:justify-between sm:text-left">
             <div>
-              <p className="font-semibold text-foreground">Are you a clinic?</p>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <p className="font-semibold text-slate-900">Are you a clinic?</p>
+              <p className="mt-1 text-sm text-slate-500">
                 Get your clinic on Lumen in under 5 minutes — website, booking, and patient portal included.
               </p>
             </div>

@@ -16,6 +16,7 @@ Node 25 compatibility — never run `next` directly or `npm run dev`.
 - **Supabase** PostgreSQL + RLS + Storage
 - **Resend** for transactional email
 - **Stripe** for bill pay (Phase 2, not yet active)
+- **Outfit** (Google Font) — single font family via `--font-sans` CSS variable
 
 ## Key files
 - `proxy.ts` — middleware: tenant slug resolution + Clerk auth
@@ -37,16 +38,33 @@ Node 25 compatibility — never run `next` directly or `npm run dev`.
 - `lib/actions/onboard.ts` — `createClinic` (atomic: clinic + location + services) + `checkSlugAvailable`
 
 ## Route structure
-- `app/(marketing)/` — public pages (home, services, providers, locations)
+- `app/(marketing)/` — public pages (home, services, providers, locations, about)
 - `app/book/` — 5-step booking wizard; fetches services + providers from DB server-side
 - `app/(portal)/` — patient portal (Clerk-protected): dashboard, appointments, intake, messages, records, settings, billing
 - `app/(admin)/` — clinic admin (Clerk-protected + `role: "admin"` required): bookings, providers, patients, messages, overview, settings
 - `app/onboard/` — white-label clinic setup wizard (public, static route)
 - `app/sign-in/`, `app/sign-up/` — Clerk auth pages
 
+## Mobile navigation components
+- `components/portal/portal-mobile-nav.tsx` — client component, Sheet drawer for patient portal mobile nav (hamburger top-left, slides from left, dark #0f172a bg, includes Back to site + Sign out)
+- `components/admin/admin-mobile-nav.tsx` — same pattern for admin mobile nav (includes Admin badge, Patient Portal link + Sign out)
+- Both use `showCloseButton={false}` on SheetContent to suppress the default X button
+
 ## Branding system
 `ClinicBrandProvider` injects `--clinic-primary` and `--clinic-accent` CSS vars per tenant.
 All branded UI uses `bg-[var(--clinic-primary)]`, `text-[var(--clinic-primary)]`, etc.
+Structural chrome uses hardcoded hex values (#0f172a sidebar, #e2e8f0 borders, #f8fafc surfaces).
+
+## Tailwind v4 — CRITICAL
+Responsive prefix classes (`sm:`, `md:`, `lg:`) do NOT reliably generate CSS in this project.
+**Always use inline `style={{}}` for:**
+- Font sizes → `style={{ fontSize: "clamp(...)" }}` or `style={{ fontSize: "1.5rem" }}`
+- Display/visibility → `style={{ display: "grid" }}` not `className="hidden lg:grid"`
+- Grid columns → `style={{ gridTemplateColumns: "1fr 1fr" }}` not `className="lg:grid-cols-2"`
+- Hover states → `onMouseEnter`/`onMouseLeave` handlers, not `hover:bg-*` classes
+- Arbitrary values like `pt-[3.75rem]` — use `style={{ paddingTop: "3.75rem" }}` instead
+
+Non-responsive utility classes (flex, gap, p-4, rounded, etc.) work fine.
 
 ## Multi-tenancy
 `proxy.ts` extracts the subdomain, sets `x-clinic-slug` header on every request.
@@ -79,6 +97,7 @@ Falls back to the `lumen` demo clinic when running locally.
 4. `supabase/migrations/004_medical_records.sql` — medical_records table + Storage bucket
 5. `supabase/migrations/005_timezone.sql` — `clinics.timezone` column
 6. `supabase/migrations/006_locations_address.sql` — `locations.city`, `.state`, `.zip` columns
+7. `supabase/migrations/007_seed_patients.sql` — mock patients, appointments, messages, records
 
 ## Admin access
 Set `publicMetadata = { "role": "admin" }` on a Clerk user to grant access to `/admin`.
@@ -90,6 +109,13 @@ Enforced at two layers: `proxy.ts` (edge, requires JWT template) and `AdminLayou
 - `next.config.ts` sets `experimental.serverActions.bodySizeLimit: "11mb"`
 - Signed URLs (1-hour expiry) via `getSignedUrl(filePath)` for downloads
 
+## Design system
+- Dark sidebar: `#0f172a` bg, `#1e293b` borders — used in both admin and patient portal
+- Section backgrounds alternate `#ffffff` / `#f8fafc` with `1px solid #e2e8f0` borders
+- All admin/portal page headings: `text-2xl font-bold text-foreground` — no subtitle text below
+- Marketing inner page headers: `#f8fafc` bg, `borderBottom: "1px solid #e2e8f0"`, `py-12`
+- Font: Outfit (single family, weights 300–700), loaded via `--font-sans` variable in `app/layout.tsx`
+
 ## Conventions
 - Avoid `"use client"` unless the component truly needs interactivity — prefer RSCs
 - `revalidatePath()` after every mutation to bust the cache
@@ -97,3 +123,4 @@ Enforced at two layers: `proxy.ts` (edge, requires JWT template) and `AdminLayou
 - shadcn components in `components/ui/`, shared layouts in `components/shared/`
 - Never use `npm run dev` — always `node node_modules/next/dist/bin/next dev --turbopack`
 - Union-type columns (e.g. `status`, `category`, `sender_role`) require explicit `as` casts when filtering from `searchParams` strings
+- Provider initials: use `.split(" ").filter(p => !p.endsWith(".")).slice(0,2).map(n=>n[0]).join("")` to skip "Dr." prefix
