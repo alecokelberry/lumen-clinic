@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { CalendarDays, MessageSquare, FileText, CreditCard, Settings, LayoutDashboard, LogOut, ArrowLeft } from "lucide-react"
+import { CalendarDays, MessageSquare, FileText, CreditCard, Settings, LayoutDashboard, LogOut } from "lucide-react"
 import { SignOutButton } from "@clerk/nextjs"
 import { cn } from "@/lib/utils"
 
@@ -43,18 +43,8 @@ export function PortalNav({ clerkConfigured }: { clerkConfigured: boolean }) {
       </nav>
 
       <div className="p-3" style={{ borderTop: "1px solid #1e293b" }}>
-        <Link
-          href="/"
-          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium"
-          style={{ color: "#64748b" }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)"; (e.currentTarget as HTMLElement).style.color = "#94a3b8" }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; (e.currentTarget as HTMLElement).style.color = "#64748b" }}
-        >
-          <ArrowLeft className="h-4 w-4 shrink-0" />
-          Back to site
-        </Link>
         {clerkConfigured && (
-          <SignOutButton redirectUrl="/">
+          <SignOutButton redirectUrl="/sign-in">
             <button
               className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium"
               style={{ color: "#64748b" }}

@@ -35,7 +35,7 @@ export default async function PortalLayout({
           style={{ background: "#0f172a", borderRight: "1px solid #1e293b" }}
         >
           <div className="flex h-14 items-center gap-2 px-5" style={{ borderBottom: "1px solid #1e293b" }}>
-            <Link href="/" className="transition-opacity hover:opacity-70">
+            <Link href="/dashboard" className="transition-opacity hover:opacity-70">
               <span style={{ fontSize: "0.9375rem", fontWeight: 600, color: "#f1f5f9", letterSpacing: "-0.01em" }}>
                 {clinic.name}
               </span>
@@ -52,7 +52,7 @@ export default async function PortalLayout({
             style={{ background: "#0f172a", borderBottom: "1px solid #1e293b" }}
           >
             <PortalMobileNav clerkConfigured={clerkConfigured} clinicName={clinic.name} />
-            <Link href="/">
+            <Link href="/dashboard">
               <span style={{ fontSize: "0.9375rem", fontWeight: 600, color: "#f1f5f9" }}>
                 {clinic.name}
               </span>

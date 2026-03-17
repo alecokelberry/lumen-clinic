@@ -91,7 +91,7 @@ export function StepConfirm({ booking, onBack, services, providers }: Props) {
 
         <div className="flex gap-3">
           <Button variant="outline" asChild>
-            <Link href="/">Back to home</Link>
+            <Link href="/dashboard">Back to dashboard</Link>
           </Button>
           <Button asChild className="bg-[var(--clinic-primary)] text-[var(--clinic-primary-foreground)] hover:opacity-90">
             <Link href="/dashboard">View in portal</Link>

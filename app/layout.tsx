@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { Outfit } from "next/font/google"
 import "./globals.css"
+import { ClerkProviderWrapper } from "@/components/clerk-provider"
 
 const outfit = Outfit({
   variable: "--font-sans",
@@ -18,28 +19,23 @@ export const metadata: Metadata = {
 }
 
 const clerkKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+const clerkConfigured = clerkKey && !clerkKey.includes("your_clerk")
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
   const bodyClass = `${outfit.variable} antialiased`
-
-  if (clerkKey && !clerkKey.includes("your_clerk")) {
-    const { ClerkProvider } = await import("@clerk/nextjs")
-    return (
-      <ClerkProvider>
-        <html lang="en" suppressHydrationWarning>
-          <body className={bodyClass}>{children}</body>
-        </html>
-      </ClerkProvider>
-    )
-  }
-
-  return (
+  const html = (
     <html lang="en" suppressHydrationWarning>
       <body className={bodyClass}>{children}</body>
     </html>
   )
+
+  if (clerkConfigured) {
+    return <ClerkProviderWrapper>{html}</ClerkProviderWrapper>
+  }
+
+  return html
 }

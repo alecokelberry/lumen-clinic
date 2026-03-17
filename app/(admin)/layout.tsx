@@ -43,7 +43,7 @@ export default async function AdminLayout({
         >
           {/* Brand */}
           <div className="flex h-14 items-center gap-2 px-5" style={{ borderBottom: "1px solid #1e293b" }}>
-            <Link href="/" className="transition-opacity hover:opacity-70">
+            <Link href="/admin" className="transition-opacity hover:opacity-70">
               <span style={{ fontSize: "0.9375rem", fontWeight: 600, color: "#f1f5f9", letterSpacing: "-0.01em" }}>
                 {clinic.name}
               </span>
@@ -65,7 +65,7 @@ export default async function AdminLayout({
           >
             <AdminMobileNav clerkConfigured={clerkConfigured} clinicName={clinic.name} />
             <div className="flex items-center gap-2">
-              <Link href="/">
+              <Link href="/admin">
                 <span style={{ fontSize: "0.9375rem", fontWeight: 600, color: "#f1f5f9" }}>
                   {clinic.name}
                 </span>

@@ -20,11 +20,11 @@ export default async function BookingLayout({
         {/* Minimal booking header */}
         <header className="border-b border-border/50 bg-background/80 backdrop-blur-xl">
           <div className="mx-auto flex h-14 max-w-2xl items-center justify-between px-4">
-            <Link href="/" className="font-display text-lg font-medium text-foreground hover:opacity-70 transition-opacity">
+            <Link href="/dashboard" className="font-display text-lg font-medium text-foreground hover:opacity-70 transition-opacity">
               {clinic.name}
             </Link>
             <Link
-              href="/"
+              href="/dashboard"
               className="flex h-8 w-8 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               <X className="h-3.5 w-3.5" />

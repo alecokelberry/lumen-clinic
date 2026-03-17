@@ -1,7 +1,20 @@
 You are Claude Sonnet 4.6, the world's best full-stack architect and product designer for elegant, minimalist healthcare SaaS in 2026. You excel at turning clunky medical tools into beautiful, calm, consumer-grade experiences that doctors and patients actually love.
 
+## ⚠️ In-progress work — next session pickup
+
+**Phase 1 (DONE, committed):** Marketing site + onboarding wizard removed. Landing page simplified to two sign-in cards. All dead links fixed.
+
+**Phase 2 (PLANNED, not yet implemented):** Replace Clerk v7 with Supabase Auth.
+- Spec: `docs/superpowers/specs/2026-03-17-supabase-auth-design.md`
+- Plan: `docs/superpowers/plans/2026-03-17-supabase-auth.md` (18 tasks, 5 chunks)
+- Start by running the plan with `superpowers:subagent-driven-development`
+
+**Current app state:** Clerk is installed but broken under Turbopack (dynamic import issue). The `clerkConfigured` flag in each file defaults to `false` so the app runs unauthenticated locally — all routes are accessible without login. This is the known state; Phase 2 fixes it permanently.
+
+---
+
 ## Project
-Lumen Clinic — white-label clinic platform. One Next.js app → any clinic's full website + patient portal + real-time booking system.
+Lumen Clinic — portfolio demo app. Streamlined to patient portal + admin dashboard for internship applications. The marketing site, onboarding wizard, and public pages have been removed.
 
 ## Running the dev server
 ```bash
@@ -12,20 +25,20 @@ Node 25 compatibility — never run `next` directly or `npm run dev`.
 ## Tech stack
 - **Next.js 16** App Router, Turbopack, React Server Components, Server Actions
 - **Tailwind v4** + shadcn/ui (new-york style) + lucide-react + Sonner toasts
-- **Clerk v7** for auth (`proxy.ts` is the middleware file — NOT `middleware.ts`)
+- **Auth — IN TRANSITION:** Clerk v7 (`@clerk/nextjs`) is installed but broken under Turbopack (dynamic import issue). Migration to Supabase Auth (`@supabase/ssr` + `@supabase/auth-ui-react`) is fully planned — spec and implementation plan are written. The app currently uses a `clerkConfigured` flag fallback so it runs without Clerk. `proxy.ts` is the middleware file — NOT `middleware.ts`.
 - **Supabase** PostgreSQL + RLS + Storage
 - **Resend** for transactional email
 - **Stripe** for bill pay (Phase 2, not yet active)
 - **Outfit** (Google Font) — single font family via `--font-sans` CSS variable
 
 ## Key files
-- `proxy.ts` — middleware: tenant slug resolution + Clerk auth
+- `proxy.ts` — middleware: tenant slug resolution + (currently) Clerk auth guard; will be replaced by Supabase session check per the migration plan
 - `lib/clinic.ts` — `getClinic()` React-cached server fn, reads `x-clinic-slug` header
 - `lib/supabase/types.ts` — handwritten DB types with `Insertable<T>` helper and `Relationships: []` on every table; run `npx supabase gen types typescript --project-id ezmktsrucdkzjrkpyigb > lib/supabase/types.ts` to replace with generated types
-- `lib/supabase/server.ts` — `createClient()` (anon) + `createServiceClient()` (service role, bypasses RLS)
+- `lib/supabase/server.ts` — `createClient()` (anon, uses `@supabase/ssr`) + `createServiceClient()` (service role, bypasses RLS)
 - `lib/tz.ts` — timezone utilities: `clinicLocalToUTC`, `getDayOfWeekInTz`, `formatDateInTz`, `formatTimeInTz`, `todayInTz`, `TIMEZONE_OPTIONS`
 - `lib/email.ts` — Resend booking + reschedule confirmation emails (gracefully no-ops if key not set)
-- `lib/require-admin.ts` — admin role guard via Clerk `publicMetadata.role`
+- `lib/require-admin.ts` — admin role guard (currently Clerk `publicMetadata.role`; will be replaced per migration plan)
 - `lib/actions/booking.ts` — creates appointments + sends confirmation email
 - `lib/actions/appointments.ts` — cancel, confirm, reschedule (+ reschedule email)
 - `lib/actions/availability.ts` — `getAvailableDates` + `getAvailableSlots` (timezone-aware)
@@ -35,18 +48,20 @@ Node 25 compatibility — never run `next` directly or `npm run dev`.
 - `lib/actions/schedules.ts` — upsert/delete `provider_schedules` rows
 - `lib/actions/providers.ts` — create/update providers
 - `lib/actions/clinic.ts` — update clinic settings (name, colors, timezone)
-- `lib/actions/onboard.ts` — `createClinic` (atomic: clinic + location + services) + `checkSlugAvailable`
 
 ## Route structure
-- `app/(marketing)/` — public pages (home, services, providers, locations, about)
-- `app/book/` — 5-step booking wizard; fetches services + providers from DB server-side
-- `app/(portal)/` — patient portal (Clerk-protected): dashboard, appointments, intake, messages, records, settings, billing
-- `app/(admin)/` — clinic admin (Clerk-protected + `role: "admin"` required): bookings, providers, patients, messages, overview, settings
-- `app/onboard/` — white-label clinic setup wizard (public, static route)
-- `app/sign-in/`, `app/sign-up/` — Clerk auth pages
+- `app/page.tsx` — landing page: two cards linking to Patient Portal (`/sign-in`) and Admin (`/sign-in?redirect_url=%2Fadmin`)
+- `app/book/` — 5-step booking wizard; fetches services + providers from DB server-side (accessible from portal dashboard)
+- `app/(portal)/` — patient portal (auth-protected): dashboard, appointments, intake, messages, records, settings, billing
+- `app/(admin)/` — clinic admin (`role: "admin"` required): bookings, providers, patients, messages, overview, settings
+- `app/sign-in/[[...sign-in]]/`, `app/sign-up/[[...sign-up]]/` — currently Clerk catchall pages; will become flat `app/sign-in/page.tsx` + `app/sign-up/page.tsx` after migration
+
+**Removed routes (Phase 1 cleanup):**
+- `app/(marketing)/` — all public marketing pages deleted
+- `app/onboard/` — white-label onboarding wizard deleted
 
 ## Mobile navigation components
-- `components/portal/portal-mobile-nav.tsx` — client component, Sheet drawer for patient portal mobile nav (hamburger top-left, slides from left, dark #0f172a bg, includes Back to site + Sign out)
+- `components/portal/portal-mobile-nav.tsx` — client component, Sheet drawer for patient portal mobile nav (hamburger top-left, slides from left, dark #0f172a bg, includes Sign out)
 - `components/admin/admin-mobile-nav.tsx` — same pattern for admin mobile nav (includes Admin badge, Patient Portal link + Sign out)
 - Both use `showCloseButton={false}` on SheetContent to suppress the default X button
 
@@ -100,8 +115,14 @@ Falls back to the `lumen` demo clinic when running locally.
 7. `supabase/migrations/007_seed_patients.sql` — mock patients, appointments, messages, records
 
 ## Admin access
-Set `publicMetadata = { "role": "admin" }` on a Clerk user to grant access to `/admin`.
-Enforced at two layers: `proxy.ts` (edge, requires JWT template) and `AdminLayout` via `requireAdmin()`.
+**Current (Clerk):** Set `publicMetadata = { "role": "admin" }` on a Clerk user. Enforced in `proxy.ts` and `AdminLayout` via `requireAdmin()`.
+
+**After Supabase migration:** Run this SQL in Supabase Dashboard:
+```sql
+UPDATE auth.users
+SET raw_app_meta_data = jsonb_set(COALESCE(raw_app_meta_data, '{}'), '{role}', '"admin"')
+WHERE email = 'your-admin@example.com';
+```
 
 ## File upload (medical records)
 - Supabase Storage bucket: `medical-records` (private)
@@ -113,7 +134,6 @@ Enforced at two layers: `proxy.ts` (edge, requires JWT template) and `AdminLayou
 - Dark sidebar: `#0f172a` bg, `#1e293b` borders — used in both admin and patient portal
 - Section backgrounds alternate `#ffffff` / `#f8fafc` with `1px solid #e2e8f0` borders
 - All admin/portal page headings: `text-2xl font-bold text-foreground` — no subtitle text below
-- Marketing inner page headers: `#f8fafc` bg, `borderBottom: "1px solid #e2e8f0"`, `py-12`
 - Font: Outfit (single family, weights 300–700), loaded via `--font-sans` variable in `app/layout.tsx`
 
 ## Conventions
